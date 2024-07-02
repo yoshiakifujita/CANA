@@ -953,6 +953,7 @@ class BooleanNode(object):
     def from_partial_lut(
         partial_lut,
         fill_missing_output_randomly=False,
+        fill_clashes=False,
         verbose=False,
         *args,
         **kwargs,
@@ -965,6 +966,7 @@ class BooleanNode(object):
         Args:
             partial_lut (list) : A partial look-up table of the node.
             fill_missing_output_randomly (bool) : If True, missing output values are filled with random 0 or 1. If False, missing output values are filled with '?'.
+            fill_clashes (bool) : If True, fill the clashing output values with the first value in the list. If False, raise an error.
             verbose (bool) : If True, print additional information.
 
         Returns:
@@ -981,7 +983,9 @@ class BooleanNode(object):
 
         """
 
-        generated_lut = fill_out_lut(partial_lut, verbose=False)
+        generated_lut = fill_out_lut(
+            partial_lut, fill_clashes=fill_clashes, verbose=False
+        )
         output_list = [x[1] for x in generated_lut]
 
         generated_node = BooleanNode.from_output_list(output_list, *args, **kwargs)
@@ -1175,7 +1179,6 @@ class BooleanNode(object):
         Note:
             The required effective connectivity should be a float value between 0 and 1.
 
-        # TODO : [SRI] to  cover the entire space of permutations evenly, what if i fill each node randomly and calculate the effective connectivity . then add them to a list of all nodes with sufficiently close effective connectivity? This option will only be activated if the calculated permutation space goes beyond a predecided threshold.
         """
 
         if effective_connectivity is None:

@@ -329,16 +329,13 @@ def input_monotone(outputs, input_idx, activation=1):
         return all(monotone_configs)
 
 
-def fill_out_lut(partial_lut, verbose=False):
+def fill_out_lut(partial_lut, fill_clashes=False, verbose=False):
     """
     Fill out a partial LUT with missing entries.
 
     Args:
         partial_lut (list) : A list of tuples where each tuple is a pair of a binary string and a value.
         fill_missing_output (bool) : If True, missing output values are filled with random 0 or 1. If False, missing output values are filled with '?'.
-
-
-
 
     Returns:
         (list) : A list of tuples where each tuple is a pair of a binary string and a value.
@@ -348,7 +345,6 @@ def fill_out_lut(partial_lut, verbose=False):
         [('00', 0), ('01', 0), ('10', 1), ('11', 1)]
 
     # TODO: [SRI] generate LUT from two symbol schemata, with a specified ratio of wildcard symbols
-    # TODO: [SRI] use examples COSA rule, GKL rule where you fill up LUT based on the annihilation inputs and see if it matches with the rules plus bias.
     """
 
     # Check if all the input entries of the partial LUT are of the same length.
@@ -389,7 +385,10 @@ def fill_out_lut(partial_lut, verbose=False):
             for perm in output_list_permutations:
                 if perm in all_states and all_states[perm] != entry[1]:
                     print("Clashing output values for entry:", perm)
-                    all_states[perm] = "!"
+                    if fill_clashes is False:
+                        all_states[perm] = "!"
+                    else:
+                        all_states[perm] = entry[1]
                 else:
                     all_states[perm] = entry[1]
 
