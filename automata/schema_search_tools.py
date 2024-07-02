@@ -33,9 +33,9 @@ def check_spread_randomness(nodes, iterations=10000):
         List of counts.
 
     How to interpret the results:
-    - If the values are close to 0, then the rules are spread randomly.
-    - If the values are close to 1, then the rules are not spread randomly.
-    - Numbers that are abs(1) are fixed values.
+    - If the values are close to 0.5, then the rules are spread randomly.
+    - If the values are close to 1 or 0, then the rules are not spread randomly.
+    - Numbers that are 1 or 0 are fixed values.
 
     Example:
     check_spread_randomness(nodes, iterations=10000)
@@ -51,17 +51,16 @@ def check_spread_randomness(nodes, iterations=10000):
     count = [0] * 128
     for rule in rules:
         for index, letter in enumerate(rule):
-            if letter == "0":
-                count[index] -= 1
-            else:
+            if letter == "1":
                 count[index] += 1
+
     mean_count = [item / iterations for item in count]
     print(mean_count)  # normalized count of 1s and 0s for each index
 
-    filtered_count = [abs(num) for num in mean_count if abs(num) != iterations]
+    filtered_count = [num for num in mean_count if 0 < num < 1]
     average = sum(filtered_count) / len(filtered_count)
     print(
-        f"Average absolute changes for generated values:{average}."
+        f"Total average probability for generated values for rows without fixed values: {average}."
     )  # average of the absolute value of the normalized count of 1s and 0s for each index
     # return count
 
