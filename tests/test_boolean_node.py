@@ -910,7 +910,7 @@ def test_generate_with_required_node_bias():
         generated_node_permuations = None
         node = BooleanNode.from_partial_lut(incomplete_automata[automata])
 
-        generated_node_permuations = BooleanNode.generate_with_required_bias( node, required_node_bias=0.5, verbose=True)
+        generated_node_permuations = BooleanNode.generate_with_required_bias( node, bias=0.5, verbose=True)
         list_of_output_lists = [node.outputs for node in generated_node_permuations]
 
         # print(automata)

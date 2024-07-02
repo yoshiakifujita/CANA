@@ -321,6 +321,12 @@ class BooleanNode(object):
         See Also:
             :func:`input_redundancy`, :func:`input_symmetry`, :func:`~cana.boolean_network.BooleanNetwork.effective_graph`.
         """
+        # checking for '?' values in the outputs
+        if "?" in self.outputs:
+            raise ValueError(
+                "The look-up table contains '?' values. The effective connectivity cannot be computed."
+            )
+
         k_r = self.input_redundancy(operator=operator, norm=False)
         #
         k_e = self.k - k_r
@@ -947,8 +953,6 @@ class BooleanNode(object):
     def from_partial_lut(
         partial_lut,
         fill_missing_output_randomly=False,
-        required_node_bias=None,
-        required_effective_connectivity=None,
         verbose=False,
         *args,
         **kwargs,
@@ -1001,7 +1005,8 @@ class BooleanNode(object):
 
     def generate_with_required_bias(
         self,
-        required_node_bias=None,
+        bias=None,
+        effective_connectivity=None,
         verbose=False,
         *args,
         **kwargs,
@@ -1011,29 +1016,31 @@ class BooleanNode(object):
         This node takes a boolean node with "?" output values and generates all possible nodes with the missing output values filled to achieve the required bias as closely as possible.
 
         Args:
-            required_node_bias (float) : The required node bias to fill the missing output values with.
+            bias (float) : The required node bias to fill the missing output values with.
             verbose (bool) : If True, print additional information.
 
         Returns:
             A Generator of BooleanNode objects with the required bias.
 
         Example:
-            >>> BooleanNode.generate_with_required_bias(required_node_bias=0.5, verbose=True, name="EG")
+            >>> BooleanNode.generate_with_required_bias(bias=0.5, verbose=True, name="EG")
 
         Note:
             The required node bias should be a float value between 0 and 1.
 
         """
         generated_node = self
-        bias = required_node_bias  # making a copy for print statement at the end of function
-        # Checking if more than one out of required_effective_connectivity, requried_node_bias and fill_missing_output_randomly are True, then raise an error.
-        if required_node_bias is None:
+        bias_for_print = (
+            bias  # making a copy for print statement at the end of function
+        )
+        # Checking if more than one out of effective_connectivity, requried_node_bias and fill_missing_output_randomly are True, then raise an error.
+        if bias is None:
             raise ValueError(
                 "Please specify the required node bias to generate the node with the required bias."
             )
 
         if (
-            required_node_bias is not None
+            bias is not None
         ):  # If required node bias is specified, then fill missing output values with the specified bias.
             # Checking if required node bias is within the achievable bias range of the node.
 
@@ -1046,30 +1053,30 @@ class BooleanNode(object):
             )
 
             # Calculating the number of '1' required to achieve the required bias.
-            required_ones = int(required_node_bias * 2**generated_node.k)
+            required_ones = int(bias * 2**generated_node.k)
             current_ones = generated_node.outputs.count("1")
 
             min_achievable_bias = current_ones / 2**generated_node.k
             min = False  # flag to check if the required bias is less than the minimum achievable bias.
             # Checking if the required bias is achievable.
-            if required_node_bias > max_achievable_bias:
+            if bias > max_achievable_bias:
                 if verbose:
                     warnings.warn(
                         f"Required Node Bias is greater than the maximum achievable bias ({max_achievable_bias}) of the node. Generating with the maximum achievable bias."
                     )
-                required_node_bias = max_achievable_bias
+                bias = max_achievable_bias
 
-            elif required_node_bias < min_achievable_bias:
+            elif bias < min_achievable_bias:
                 if verbose:
                     warnings.warn(
                         f"Required Node Bias is lower than the minimum achievable bias ({min_achievable_bias}) of the node. Generating with the minimum achievable bias."
                     )
-                required_node_bias = min_achievable_bias
+                bias = min_achievable_bias
                 min = True
 
             # Fill the missing output values to achieve the required bias as closely as possible.
             required_ones = int(
-                required_node_bias * 2**generated_node.k
+                bias * 2**generated_node.k
             )  # recalculating in case the required bias was adjusted in the above steps.
             ones_to_be_generated = required_ones - current_ones
             number_of_missing_values = generated_node.outputs.count("?")
@@ -1102,7 +1109,9 @@ class BooleanNode(object):
             )
             generated_node_permutations = []
 
-            def node_permutations(combinations, node_outputs, *args, **kwargs):
+            def node_permutations(
+                combinations, node_outputs, missing_output_indices, *args, **kwargs
+            ):
                 """
                 Applying the generated combinations to the missing output values and generating the BooleanNode objects.
                 """ 
@@ -1110,15 +1119,20 @@ class BooleanNode(object):
                 for combination in combinations:
                     combination = list(combination)
                     generated_outputs = node_outputs.copy()
-                    for i, output in enumerate(node_outputs):
-                        if output == "?":
-                            generated_outputs[i] = combination.pop()
+                    for index in missing_output_indices:
+                        generated_outputs[index] = combination.pop()
                     yield BooleanNode.from_output_list(
                         generated_outputs, *args, **kwargs
                     )
 
+            node_outputs = generated_node.outputs
+            missing_output_indices = [i for i, x in enumerate(node_outputs) if x == "?"]
             generated_node_permutations = node_permutations(
-                combinations, generated_node.outputs, *args, **kwargs
+                combinations,
+                node_outputs=node_outputs,
+                missing_output_indices=missing_output_indices,
+                *args,
+                **kwargs,
             )
 
             output_bias_for_print = (
@@ -1127,18 +1141,19 @@ class BooleanNode(object):
             if verbose:
                 if min:
                     print(
-                        f"{combinationsnumber:.2e} possible permutation(s) with a bias of {output_bias_for_print}. This is the closest achievable bias to the required bias of {bias}."
+                        f"{combinationsnumber:.2e} possible permutation(s) with a bias of {output_bias_for_print}. This is the closest achievable bias to the required bias of {bias_for_print}."
                     )
                 else:
                     print(
-                        f"{combinationsnumber:.2e} possible permutation(s) with a bias of {output_bias_for_print}. This is the closest bias less than or equal to the required bias of {bias}."
+                        f"{combinationsnumber:.2e} possible permutation(s) with a bias of {output_bias_for_print}. This is the closest bias less than or equal to the required bias of {bias_for_print}."
                     )
             return generated_node_permutations  # returning a generator of BooleanNode objects with the required bias.
 
     def generate_with_required_effective_connectivity(
         self,
-        required_effective_connectivity=None,
-        # limit=50,
+        effective_connectivity=None,
+        epsilon=0.01,
+        shuffle=False,  # depending on required effective connectivity, this can be faster or slower.
         verbose=False,
         *args,
         **kwargs,
@@ -1148,14 +1163,14 @@ class BooleanNode(object):
         This node takes a boolean node with "?" output values and generates all possible nodes with the missing output values filled to achieve the required effective connectivity as closely as possible.
 
         Args:
-            required_effective_connectivity (float) : The required effective connectivity to fill the missing output values with. It will generate a node with the closest possible effective connectivity to the required effective connectivity.
+            effective_connectivity (float) : The required effective connectivity to fill the missing output values with. It will generate a node with the closest possible effective connectivity to the required effective connectivity.
             verbose (bool) : If True, print additional information.
 
         Returns:
             (BooleanNode) : the instantiated object.
 
         Example:
-            >>> BooleanNode.generate_with_required_effective_connectivity(required_effective_connectivity=0.5, verbose=True, name="EG")
+            >>> BooleanNode.generate_with_required_effective_connectivity(effective_connectivity=0.5, verbose=True, name="EG")
 
         Note:
             The required effective connectivity should be a float value between 0 and 1.
@@ -1163,43 +1178,138 @@ class BooleanNode(object):
         # TODO : [SRI] to  cover the entire space of permutations evenly, what if i fill each node randomly and calculate the effective connectivity . then add them to a list of all nodes with sufficiently close effective connectivity? This option will only be activated if the calculated permutation space goes beyond a predecided threshold.
         """
 
+        if effective_connectivity is None:
+            raise ValueError("Please provide a required effective connectivity value.")
+
         generated_node = self
-        if required_effective_connectivity is not None:
-            generated_outputs = generated_node.outputs.copy()
-            missing_output_indices = [
-                i for i, x in enumerate(generated_outputs) if x == "?"
-            ]
-            # print(f"Missing output indices = {missing_output_indices}." if verbose else None)
+        generated_outputs = generated_node.outputs.copy()
+        missing_output_count = generated_outputs.count("?")
+        if verbose:
+            print(f"No. of '?' in output = {missing_output_count}.")
 
-            missing_output_count = generated_outputs.count("?")
-            # print(f"No. of '?' in output = {missing_output_count}.")
-            missing_permutations = list(product(*[("0", "1")] * (missing_output_count)))
-            # print(permutations)
-            generated_node_permutations = [None] * len(missing_permutations)
+        missing_output_indices = [
+            i for i, x in enumerate(generated_outputs) if x == "?"
+        ]
 
-            for count, missing_permutation in enumerate(missing_permutations):
+        missing_permutations = product(*[("0", "1")] * (missing_output_count))
+
+        generated_node_permutations = []
+
+        def permutations_with_ec(
+            missing_permutations,
+            missing_output_indices,
+            generated_outputs,
+            effective_connectivity=effective_connectivity,
+            epsilon=epsilon,
+            shuffle=shuffle,
+            *args,
+            **kwargs,
+        ):
+            """
+            applying all permutations of 1's and 0's to '?' values in the output list.
+            Generating a BooleanNode object with evert permutation and checking if its effective connectivity is close enough to the required effective connectivity.
+            Returning a generator of all nodes with close enough required effective connectivity.
+            """
+            # count = 0  # counting number of nodes generated till a suitable one is found. To understand how the search space is being traversed.
+            found_at_least_one = False
+            closest_ec_node = None
+            for perm in missing_permutations:
+                # count += 1
+
+                # shuffling the permutation to access the entire search space randomly. This is computationally slower if required E_c is close to 0.375. Turn off if not needed. NOTE: shuffle is faster for certain required E_c values.
+                if shuffle:
+                    perm = list(perm)
+                    random.shuffle(perm)
+
+                output = generated_outputs.copy()
                 for i, index in enumerate(missing_output_indices):
-                    generated_outputs[index] = missing_permutation[i]
-                generated_node_permutations[count] = BooleanNode.from_output_list(
-                    generated_outputs, *args, **kwargs
-                )  # generating a list of nodes with all possible permutations of the missing output values.
+                    output[index] = perm[i]
 
-            # print(f"Total output permutations generated = {len(generated_node_permutations)}.")
+                node = BooleanNode.from_output_list(output, *args, **kwargs)
+                if (
+                    node.is_within_tolerance(
+                        effective_connectivity=effective_connectivity,
+                        epsilon=epsilon,
+                    )
+                    is True
+                ):
+                    # print(count)
+                    # count = 0
+                    found_at_least_one = True  # we found at least one node within epsilon. there is now no need to find the closest possible one.
 
-            permutation_effective_connectivity = [
-                x.effective_connectivity() for x in generated_node_permutations
-            ]
-            closest_value = min(
-                permutation_effective_connectivity,
-                key=lambda x: abs(x - required_effective_connectivity),
-            )
-            closest_index = permutation_effective_connectivity.index(closest_value)
+                    yield node
 
-            generated_node = generated_node_permutations[closest_index]
+                if found_at_least_one is False:
+                    # if we can't find a single rule within epsilon, let's return the closest possible one.
+
+                    if closest_ec_node is None:
+                        closest_ec_node = node
+                        smallest_gap = abs(
+                            node.effective_connectivity() - effective_connectivity
+                        )
+                    else:
+                        gap = abs(
+                            node.effective_connectivity() - effective_connectivity
+                        )
+                        if gap < smallest_gap:
+                            closest_ec_node = node
+                            smallest_gap = gap
+                        # else:
+                        #     continue
+                # else:
+                #     continue
+
+            if found_at_least_one is False:
+                warnings.warn(
+                    f"No node within {epsilon} of {effective_connectivity} (required effective connectivity) found.\nGenerating a node with the closest effective connectivity of {closest_ec_node.effective_connectivity()}"
+                )
+                yield closest_ec_node
+
+        generated_node_permutations = permutations_with_ec(
+            missing_permutations,
+            missing_output_indices,
+            generated_outputs,
+            effective_connectivity,
+            epsilon=epsilon,
+            *args,
+            **kwargs,
+        )
+
+        if verbose:
             print(
-                f"Generated the node with the closest possible effective connectivity of {generated_node.effective_connectivity()}."
-                if verbose
-                else None
+                f"Returning a generator of nodes with effective connectivity within {epsilon} of {effective_connectivity}."
             )
 
-        return generated_node
+        return generated_node_permutations  # returning a generator of BooleanNode objects with close enough effective connectivity.
+
+    def is_within_tolerance(self, effective_connectivity=None, bias=None, epsilon=0.01):
+        """
+        Check if the node's effective connectivity or bias is within the required tolerance.
+
+        Args:
+            effective_connectivity (float) : The required effective connectivity value.
+            required_bias (float) : The required bias value.
+            epsilon (float) : The tolerance value.
+
+        Returns:
+            (bool) : True if the node's effective connectivity or bias (or both, if both are specified) is within the required tolerance, False otherwise.
+
+        """
+        if (effective_connectivity is None) and (bias is None):
+            raise ValueError(
+                "Please provide a required effective connectivity value or required bias."
+            )
+
+        if effective_connectivity is not None:
+            if abs(self.effective_connectivity() - effective_connectivity) < epsilon:
+                result = True
+            else:
+                result = False
+
+        if bias is not None:
+            if abs(self.bias() - bias) < epsilon:
+                result = True
+            else:
+                result = False
+
+        return result
