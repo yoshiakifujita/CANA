@@ -1031,7 +1031,9 @@ class BooleanNode(object):
 
         Note:
             The required node bias should be a float value between 0 and 1.
-
+        TODO: [SRI] PERMUTE ONLY MAINTENENCE RULES and explore
+        TODO: [SRI] check spread of ec across space 
+        TODO: [SRI] generate wildcards with a given probability instead of permuting the total number
         """
         generated_node = self
         bias_for_print = (
@@ -1094,7 +1096,7 @@ class BooleanNode(object):
 
             def unique_permutations_missing_values(elements, n):
                 """
-                Generate n unique permutations of elements.
+                Generate n unique permutations of elements. Shuffle the elements till a new arrangement is found. 
                 """
                 seen = set()
 
@@ -1219,7 +1221,7 @@ class BooleanNode(object):
             for perm in missing_permutations:
                 # count += 1
 
-                # shuffling the permutation to access the entire search space randomly. This is computationally slower if required E_c is close to 0.375. Turn off if not needed. NOTE: shuffle is faster for certain required E_c values.
+                # shuffling the permutation to access the entire search space randomly. Turn off if not needed. NOTE: shuffle is faster for certain required E_c values.
                 if shuffle:
                     perm = list(perm)
                     random.shuffle(perm)
