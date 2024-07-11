@@ -22,9 +22,9 @@ Below are the histograms of the $K_e$ of new rules generated with the parent rul
 ![alt text](ke_MM401_annihilation_creation.png)
 
 
-COE_1 $K_e$ is easier to replicate via annihilation generation. The rest, not so much. 
+COE_1 $K_e$ is easier to replicate via annihilation generation when generated with the parent rule bias. The rest, not so much. 
 
-#### Bias of generated rules with parent rule Ec
+#### Bias of rules generated with parent rule $K_e$
 Below are the histograms of the bias of new rules generated with the parent rule $K_e$.
 ![alt text](bias_COE_2_annihilation_creation.png) 
 ![alt text](bias_Das_annihilation_creation.png) 
@@ -36,4 +36,4 @@ Below are the histograms of the bias of new rules generated with the parent rule
 ![alt text](bias_GP_annihilation_creation.png) 
 ![alt text](bias_MM401_annihilation_creation.png)
 
-Randomly sampled across the permutation space, the bias of generated rules are far away from the bias of the parent rule. 
+Randomly sampled across the permutation space, the bias of generated rules are far away from the bias of the parent rule when generated from the parent rule $K_e$. 
