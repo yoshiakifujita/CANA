@@ -1,5 +1,5 @@
 # Generating complete LUTs from annihilation generation rules
-Generating for a given $K_e$ or a given Bias is quick and straighforward.
+Generating for a given $K_e$ or a given Bias is quick and straightforward.
 
 ## Generating new rules with parent rule bias and $K_e$
 Generating LUTs similar to the parent rule's $K_e$ and Bias (both together) is not so simple. 
@@ -8,6 +8,7 @@ However, most rules generated with that bias tend to have a much higher $K_e$ th
 
 ### Existing DCT rules have a rare combination of Bias and $K_e$
 #### $K_e$ of generated rules with parent rule bias
+COE_1 $K_e$ is easier to replicate via annihilation generation when generated with the parent rule bias. The rest, not so much. 
 Below are the histograms of the $K_e$ of new rules generated with the parent rule bias.
 ![alt text](ke_ABK_annihilation_creation.png) 
 ![alt text](ke_COE_1_annihilation_creation.png) 
@@ -22,9 +23,9 @@ Below are the histograms of the $K_e$ of new rules generated with the parent rul
 ![alt text](ke_MM401_annihilation_creation.png)
 
 
-COE_1 $K_e$ is easier to replicate via annihilation generation when generated with the parent rule bias. The rest, not so much. 
 
 #### Bias of rules generated with parent rule $K_e$
+Randomly sampled across the permutation space, the bias of generated rules is far away from the bias of the parent rule when generated from the parent rule $K_e$. 
 Below are the histograms of the bias of new rules generated with the parent rule $K_e$.
 ![alt text](bias_COE_2_annihilation_creation.png) 
 ![alt text](bias_Das_annihilation_creation.png) 
@@ -36,4 +37,3 @@ Below are the histograms of the bias of new rules generated with the parent rule
 ![alt text](bias_GP_annihilation_creation.png) 
 ![alt text](bias_MM401_annihilation_creation.png)
 
-Randomly sampled across the permutation space, the bias of generated rules are far away from the bias of the parent rule when generated from the parent rule $K_e$. 
