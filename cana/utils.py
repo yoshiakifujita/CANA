@@ -380,15 +380,21 @@ def fill_out_lut(partial_lut, fill_clashes=False, verbose=False):
                         + str(table[i][j])
                         + output_list_permutations[i][missing_data_indices[j] + 1 :]
                     )
-            del all_states[entry[0]]
+            if entry[0] in all_states:
+                del all_states[entry[0]]
 
             for perm in output_list_permutations:
                 if perm in all_states and all_states[perm] != entry[1]:
-                    print("Clashing output values for entry:", perm)
+                    if verbose:
+                        print("Clashing output values for entry:", perm)
                     if fill_clashes is False:
                         all_states[perm] = "!"
-                    else:
+                    elif fill_clashes is True:
                         all_states[perm] = entry[1]
+                    else:
+                        raise ValueError(
+                            "fill_clashes must be either True or False. Default is False."
+                        )
                 else:
                     all_states[perm] = entry[1]
 

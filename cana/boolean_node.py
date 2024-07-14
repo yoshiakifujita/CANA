@@ -984,7 +984,7 @@ class BooleanNode(object):
         """
 
         generated_lut = fill_out_lut(
-            partial_lut, fill_clashes=fill_clashes, verbose=False
+            partial_lut, fill_clashes=fill_clashes, verbose=verbose
         )
         output_list = [x[1] for x in generated_lut]
 
@@ -999,12 +999,8 @@ class BooleanNode(object):
                 for output in generated_node.outputs
             ]
 
-        if verbose and "?" in generated_node.outputs:
-            print(
-                "The LUT is incomplete. Missing values are represented by '?'."
-                if verbose
-                else None
-            )
+        if verbose and ("?" in generated_node.outputs):
+            print("The LUT is incomplete. Missing values are represented by '?'.")
         return generated_node
 
     def generate_with_required_bias(
@@ -1032,7 +1028,6 @@ class BooleanNode(object):
         Note:
             The required node bias should be a float value between 0 and 1.
         TODO: [SRI] PERMUTE ONLY MAINTENENCE RULES and explore
-        TODO: [SRI] check spread of ec across space 
         TODO: [SRI] generate wildcards with a given probability instead of permuting the total number
         """
         generated_node = self
@@ -1221,7 +1216,7 @@ class BooleanNode(object):
             for perm in missing_permutations:
                 # count += 1
 
-                # shuffling the permutation to access the entire search space randomly. Turn off if not needed. NOTE: shuffle is faster for certain required E_c values.
+                # shuffling the permutation to access the entire search space randomly. Turn off if not needed. NOTE: shuffle is faster for certain required K_e values.
                 if shuffle:
                     perm = list(perm)
                     random.shuffle(perm)
