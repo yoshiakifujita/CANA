@@ -12,33 +12,33 @@ However, most rules generated with that bias tend to have a much higher $K_e$ th
 
 #### $K_e$ of generated rules with parent rule bias
 
-COE_1 $K_e$ is easier to replicate via annihilation generation when generated with the parent rule bias. The rest, not so much. 
+COE_1 $K_e$ is easier to replicate via annihilation generation when generated with the parent rule bias. The rest, not so much.
 Below are the histograms of the $K_e$ of new rules generated with the parent rule bias.
-![alt text](ke_ABK_annihilation_creation.png)
-![alt text](ke_COE_1_annihilation_creation.png)
-![alt text](ke_COE_2_annihilation_creation.png)
-![alt text](ke_Das_annihilation_creation.png)
-![alt text](ke_Davis_annihilation_creation.png)
-![alt text](ke_DMC_annihilation_creation.png)
-![alt text](ke_GEP_1_annihilation_creation.png)
-![alt text](ke_GEP_2_annihilation_creation.png)
-![alt text](ke_GKL_annihilation_creation.png)
-![alt text](ke_GP_annihilation_creation.png)
-![alt text](ke_MM401_annihilation_creation.png)
-
+![alt text](ke_ABK_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_COE_1_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_COE_2_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_Das_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_Davis_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_DMC_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_GEP_1_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_GEP_2_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_GKL_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_GP_annihilation_creation_from_parent_rule_bias.png)
+![alt text](ke_MM401_annihilation_creation_from_parent_rule_bias.png)
 
 #### Bias of rules generated with parent rule $K_e$
-Randomly sampled across the permutation space, the bias of generated rules is far away from the bias of the parent rule when generated from the parent rule $K_e$. 
+
+Randomly sampled across the permutation space, the bias of generated rules is far away from the bias of the parent rule when generated from the parent rule $K_e$.
 Below are the histograms of the bias of new rules generated with the parent rule $K_e$.
-![alt text](bias_COE_2_annihilation_creation.png)
-![alt text](bias_Das_annihilation_creation.png)
-![alt text](bias_Davis_annihilation_creation.png)
-![alt text](bias_DMC_annihilation_creation.png)
-![alt text](bias_GEP_1_annihilation_creation.png)
-![alt text](bias_GEP_2_annihilation_creation.png)
-![alt text](bias_GKL_annihilation_creation.png)
-![alt text](bias_GP_annihilation_creation.png)
-![alt text](bias_MM401_annihilation_creation.png)
+![alt text](bias_Das_annihilation_creation_from_parent_rule_ke.png)
+![alt text](bias_GEP_1_annihilation_creation_from_parent_rule_ke.png)
+![alt text](bias_GEP_2_annihilation_creation_from_parent_rule_ke.png)
+![alt text](bias_GKL_annihilation_creation_from_parent_rule_ke.png)
+![alt text](bias_GP_annihilation_creation_from_parent_rule_ke.png)
+![alt text](bias_MM401_annihilation_creation_from_parent_rule_ke.png)
+![alt text](bias_COE_2_annihilation_creation_from_parent_rule_ke.png)
+![alt text](bias_Davis_annihilation_creation_from_parent_rule_ke.png)
+![alt text](bias_DMC_annihilation_creation_from_parent_rule_ke.png)
 
 ### Looking at edge effectiveness of rules
 
@@ -70,5 +70,9 @@ Also, below are the plots of the edge-efectiveness Gini coefficient of the DCT r
 ![alt text](gini_GKL_of_edge_effectiveness_generated_from_annihilation_creation_and_parent_rule_Ke.png)
 ![alt text](gini_GP_of_edge_effectiveness_generated_from_annihilation_creation_and_parent_rule_Ke.png)
 ![alt text](gini_MM401_of_edge_effectiveness_generated_from_annihilation_creation_and_parent_rule_Ke.png)
+
+## Comparing K_e and Bias of DCT rules with the generated rules from annihilation generation with random missing outputs
+
+![alt text](scatterplots_bias_ke_generated_rules.png)
 
 Gates, A. J., Brattig Correia, R., Wang, X., & Rocha, L. M. (2021). The effective graph reveals redundancy, canalization, and control pathways in biochemical regulation and signaling. Proceedings of the National Academy of Sciences, 118(12), e2022598118. <https://doi.org/10.1073/pnas.2022598118>
