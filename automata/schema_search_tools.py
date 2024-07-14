@@ -94,6 +94,11 @@ def annihilation_generation_rules(output_list):
     It generates new lookup tables for annihilation(using logic [RULE & (NOT X_4)]) and generation(using logic [NOT RULE & (X_4)]).
     The rows that output 1 in the new schematas are the annihilations and generations.
     We combine the two dataframes to get the final dataframe. We reassign the annihilation output to 0.
+
+    Example:
+    output_list = ['0', '1', '0', '1', '1', '0', '1', '0']
+    annihilation_generation_rules(output_list)
+
     """
 
     node = BooleanNode.from_output_list(
@@ -137,3 +142,61 @@ def annihilation_generation_rules(output_list):
     annihilation_generation_rules = annihilation_generation_rules.values.tolist()
 
     return annihilation_generation_rules
+
+def maintenance_rules(output_list):
+    """
+    This function takes in a list of outputs from an automata and returns a list of maintenance rules.
+
+    Args:
+    output_list: list of outputs from an automata
+
+    Returns:
+    maintenance_rules: list of maintenance rules
+
+    Method:
+    Using BooleanNode from CANA, it creates a look-up-table from a list of outputs.
+    Using the annihilation_generation_rules function, it generates a list of annihilation and generation rules.
+    It looks for the corresponding rule in the schemata and removes it.
+    For cases where the annihilation or generation rule is partially in the schemata, it splits the corresponding rule and retrieves the maintenance part.
+
+
+    Example:
+    output_list = ['0', '1', '0', '1', '1', '0', '1', '0']
+    maintenance_rules(output_list)
+
+    """
+    schemata = BooleanNode.from_output_list(output_list).schemata_look_up_table()
+    schemata = schemata.values.tolist()
+    anni_gen_rules = annihilation_generation_rules(output_list)
+
+    for rule in anni_gen_rules:
+        if (
+            rule in schemata
+        ):  # that which is neither annihilation nor generation is maintenance, except for a few exceptions. Removing the annihilation and generation rules from the schemata.
+            schemata.remove(rule)
+
+        # change the middle value of the rule to #
+        wildcard_rule = [(rule[0][:3] + "#" + rule[0][4:]), rule[1]]
+        if (
+            wildcard_rule in schemata
+        ):  # check if the annihilation or generation rule is partially in the schemata. Sometimes it is a part of the rule with "#" in the middle and isn't on its own.
+            if (
+                rule[1] in ["0", 0]
+            ):  # if the output of the rule is 0, the corresponding maintenance rule output must also be 0
+                # modify the middle value of schemata(wildcard_rule) to "0"
+                schemata.remove(wildcard_rule)
+                schemata.append(
+                    [wildcard_rule[0][:3] + "0" + wildcard_rule[0][4:], rule[1]]
+                )
+            elif (
+                rule[1] in ["1", 1]
+            ):  # if the output of the rule is 1, the corresponding maintenance rule output must also be 1
+                # modify the middle value of schemata(wildcard_rule) to "1"
+                schemata.remove(wildcard_rule)
+                schemata.append(
+                    [wildcard_rule[0][:3] + "1" + wildcard_rule[0][4:], rule[1]]
+                )
+            else:
+                raise ValueError("Rule output must be 0 or 1")
+    maintenance_rules = schemata
+    return maintenance_rules
