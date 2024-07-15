@@ -1006,7 +1006,6 @@ class BooleanNode(object):
     def generate_with_required_bias(
         self,
         bias=None,
-        effective_connectivity=None,
         verbose=False,
         *args,
         **kwargs,
