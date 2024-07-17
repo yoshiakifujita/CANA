@@ -1003,6 +1003,38 @@ class BooleanNode(object):
             print("The LUT is incomplete. Missing values are represented by '?'.")
         return generated_node
 
+    def fill_missing_output_randomly(self, limit=None):
+        """
+        Generate a node with missing output values filled randomly.
+
+        Args:
+            node (BooleanNode) : The node to generate with. The node must contain missing '?' output values.
+
+        Returns:
+            A Generator of BooleanNode objects with missing output values filled randomly.
+
+        Example:
+            >>> BooleanNode.fill_missing_output_randomly(limit=10)
+        """
+        generated_node = self
+
+        # check if there are any missing output values
+        if "?" not in generated_node.outputs:
+            raise ValueError("There are no missing output values in the node.")
+
+        # Replace '?' in generated_node.outputs with 0 or 1 randomly
+        while True:
+            new_outputs = [
+                random.choice(["0", "1"]) if output == "?" else output
+                for output in generated_node.outputs
+            ]
+            yield BooleanNode.from_output_list(new_outputs)
+
+            if limit is not None:
+                if limit == 0:
+                    break
+                limit -= 1
+
     def generate_with_required_bias(
         self,
         bias=None,
@@ -1026,8 +1058,8 @@ class BooleanNode(object):
 
         Note:
             The required node bias should be a float value between 0 and 1.
-        TODO: [SRI] PERMUTE ONLY MAINTENENCE RULES and explore
-        TODO: [SRI] generate wildcards with a given probability instead of permuting the total number
+        TODO: [SRI] Add all progress to report.
+        TODO: [SRI] generate wildcards with a given probability instead of permuting the total number. Currently we only shuffle each line in place.
         """
         generated_node = self
         bias_for_print = (
