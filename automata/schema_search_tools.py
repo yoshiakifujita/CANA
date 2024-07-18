@@ -82,7 +82,7 @@ def check_for_duplicates(nodes, iterations=10000):
     print(f"Unique rules generated:{len(set(rules))}")
 
 
-def annihilation_generation_rules(output_list):
+def annihilation_generation_rules(output_list, split=False):
     """
     This function takes in a list of outputs from an automata and returns a dataframe with the rules that are annihilation and generation rules.
 
@@ -137,7 +137,8 @@ def annihilation_generation_rules(output_list):
     generation_rules.loc[:, "Output"] = (
         1  # reassigning the output to 1 since it is a generation rule
     )
-
+    if split:
+        return annihilation_rules.values.tolist(), generation_rules.values.tolist()
     # combining the two dataframes to get the final dataframe
     annihilation_generation_rules = pd.concat([annihilation_rules, generation_rules])
 
@@ -308,19 +309,20 @@ def shuffle_wildcards_in_schemata(schemata):
 
 def collect_data_from_generator(node_generator, limit=1000, name=None, verbose=False):
     """
-    Collect data from a node generator until it is exhausted or reaches the limit.
+    Collect data from a node generator.
 
     Args:
-    node_generator (iterator): Node generator.
+    node_generator (generator): Generator of nodes.
     limit (int): Limit of nodes to generate.
-    name (str): Name of the node.
+    name (str): Name of the generator.
     verbose (bool): Verbose output.
 
     Returns:
     generated_nodes (list): List of generated nodes.
     node_bias (list): List of node biases.
     node_ke (list): List of node effective connectivities.
-    count (int): Number of nodes generated.
+    count (int): Count of generated nodes.
+
     """
 
     nodes = node_generator
@@ -469,7 +471,10 @@ def shuffle_and_generate(
 
 
 def min_max_and_parent_rule_values(
-    automata_output_list: dict, values: dict, parent_value_type: str = "ke"
+    automata_output_list: dict,
+    values: dict,
+    value_type: str = "ke",
+    include_parent=True,
 ):
     """
     Get the min and max values for the histograms and the parent rule values.
@@ -487,22 +492,27 @@ def min_max_and_parent_rule_values(
 
     min_max = []
     parent_rule_values = {}
-    for item in automata_output_list:
-        parent_node = BooleanNode.from_output_list(automata_output_list[item])
-        if parent_value_type == "ke":
-            parent_rule_values[item] = parent_node.effective_connectivity()
-        elif parent_value_type == "bias":
-            parent_rule_values[item] = parent_node.bias()
-        else:
-            print("Invalid parent_value_type. Must be 'ke' or 'bias'.")
+    for item in values:
+        if include_parent:
+            parent_node = BooleanNode.from_output_list(automata_output_list[item])
+            if value_type == "ke":
+                parent_rule_values[item] = parent_node.effective_connectivity()
+            elif value_type == "bias":
+                parent_rule_values[item] = parent_node.bias()
+            else:
+                print("Invalid parent_value_type. Must be 'ke' or 'bias'.")
 
         min_max.append(min(values[item]))
         min_max.append(max(values[item]))
-
-    min_max.append(min(parent_rule_values.values()) * 0.98)
-    min_max.append(max(parent_rule_values.values()) * 1.02)
+    if include_parent:
+        min_max.append(min(parent_rule_values.values()) * 0.98)
+        min_max.append(max(parent_rule_values.values()) * 1.02)
     min_max = [min(min_max), max(min_max)]
-    return min_max, parent_rule_values
+
+    if include_parent:
+        return min_max, parent_rule_values
+    else:
+        return min_max
 
 
 def plot_hist(
@@ -512,6 +522,7 @@ def plot_hist(
     title=None,
     save=False,
     filename=None,
+    include_parent=False,
 ) -> None:
     """
     Plot histogram of generated node values.
@@ -524,6 +535,12 @@ def plot_hist(
     Returns:
     None
 
+    Example:
+    generated_node_values = {
+        "Rule 1": [0.1, 0.2, 0.3, 0.4, 0.5],
+        "Rule 2": [0.2, 0.3, 0.4, 0.5, 0.6],
+    }
+    plot_hist(generated_node_values, value_type='ke')
     """
 
     if value_type == "ke":
@@ -551,7 +568,10 @@ def plot_hist(
         fontsize=25,
     )
     min_max, parent_rule_values = min_max_and_parent_rule_values(
-        automata_output_list, generated_node_values, parent_value_type=value_type
+        automata_output_list,
+        generated_node_values,
+        value_type=value_type,
+        include_parent=include_parent,
     )
     for i, rule in enumerate(generated_node_values):
         ax = axs.flatten()[i]
@@ -589,7 +609,7 @@ def plot_hist(
             #     fontsize=10,
             # )
 
-            ax.legend(fontsize="large")
+            ax.legend(fontsize="large", loc="upper right")
 
     plt.tight_layout()
     plt.subplots_adjust(top=0.92)
@@ -606,6 +626,7 @@ def plot_scatter(
     title=None,
     save=False,
     filename=None,
+    include_parent=False,
 ) -> None:
     """
     Plot scatter plot of generated rules.
@@ -619,6 +640,16 @@ def plot_scatter(
     Returns:
     None
 
+    Example:
+    first_values = {
+        "Rule 1": [0.1, 0.2, 0.3, 0.4, 0.5],
+        "Rule 2": [0.2, 0.3, 0.4, 0.5, 0.6],
+    }
+    second_values = {
+        "Rule 1": [0.2, 0.3, 0.4, 0.5, 0.6],
+        "Rule 2": [0.3, 0.4, 0.5, 0.6, 0.7],
+    }
+    plot_scatter(first_values, second_values, label=['ke', 'bias'])
     """
     if label[0] == label[1]:
         raise ValueError("Invalid labels. Must be different.")
@@ -638,7 +669,9 @@ def plot_scatter(
         title = f"Scatter plot of {xlabel} and {ylabel} of generated rules."
 
     total_plots = len(first_values)
-    no_of_rows = int((total_plots / no_of_columns) + 1)
+    no_of_rows = (
+        int((total_plots / no_of_columns) + 1) if total_plots > no_of_columns else 1
+    )
 
     fig, axs = plt.subplots(no_of_rows, no_of_columns, figsize=(25, 15))
     fig.suptitle(
@@ -646,10 +679,16 @@ def plot_scatter(
         fontsize=25,
     )
     min_max_x, parent_rule_values_x = min_max_and_parent_rule_values(
-        automata_output_list, first_values, parent_value_type=label[0]
+        automata_output_list,
+        first_values,
+        value_type=label[0],
+        include_parent=include_parent,
     )
     min_max_y, parent_rule_values_y = min_max_and_parent_rule_values(
-        automata_output_list, second_values, parent_value_type=label[1]
+        automata_output_list,
+        second_values,
+        value_type=label[1],
+        include_parent=include_parent,
     )
     # plot scatter if first value and second value for
     rules = list(first_values.keys())
