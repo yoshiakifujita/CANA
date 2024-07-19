@@ -951,13 +951,13 @@ class BooleanNode(object):
         return input_sign_list
 
     def from_partial_lut(
-        partial_lut,
-        fill_missing_output_randomly=False,
-        fill_clashes=False,
-        verbose=False,
+        partial_lut: list,
+        fill_missing_output_randomly: bool = False,
+        fill_clashes: bool = False,
+        verbose: bool = False,
         *args,
         **kwargs,
-    ):
+    ) -> "BooleanNode":
         """
         Instantiate a Boolean Node from a partial look-up table.
 

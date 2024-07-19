@@ -329,7 +329,7 @@ def input_monotone(outputs, input_idx, activation=1):
         return all(monotone_configs)
 
 
-def fill_out_lut(partial_lut, fill_clashes=False, verbose=False):
+def fill_out_lut(partial_lut: list, fill_clashes: bool = False, verbose: bool =False)->list:
     """
     Fill out a partial LUT with missing entries.
 

@@ -1,4 +1,5 @@
 import random
+from typing import Generator
 from matplotlib import pyplot as plt
 from cana.boolean_node import BooleanNode
 import pandas as pd
@@ -82,7 +83,7 @@ def check_for_duplicates(nodes, iterations=10000):
     print(f"Unique rules generated:{len(set(rules))}")
 
 
-def annihilation_generation_rules(output_list, split=False):
+def annihilation_generation_rules(output_list: list, split: bool = False) -> list:
     """
     This function takes in a list of outputs from an automata and returns a dataframe with the rules that are annihilation and generation rules.
 
@@ -147,7 +148,7 @@ def annihilation_generation_rules(output_list, split=False):
 
     return annihilation_generation_rules
 
-def maintenance_rules(output_list):
+def maintenance_rules(output_list: list) -> list:
     """
     This function takes in a list of outputs from an automata and returns a list of maintenance rules.
 
@@ -204,6 +205,34 @@ def maintenance_rules(output_list):
                 raise ValueError("Rule output must be 0 or 1")
     maintenance_rules = schemata
     return maintenance_rules
+
+
+def fill_missing_outputs_as_maintenance(node: BooleanNode) -> BooleanNode:
+    """
+    Generate a node with missing output values filled as maintenance rules.
+
+    Args:
+        node (BooleanNode) : The node to generate with. The node must contain missing '?' output values.
+
+    Returns:
+        A BooleanNode object with missing output values filled as maintenance rules.
+    """
+
+    # check if there are any missing output values
+    if "?" not in node.outputs:
+        raise ValueError("There are no missing output values in the node.")
+    # Replace '?' in generated_node.outputs with 0 or 1 dependint on the middle element of the respective rule
+    lut = node.look_up_table().values.tolist()
+    middle_element = len(lut[0][0]) // 2  # middle input is reduced by 1 since indexing starts from 0
+    new_outputs = []
+    for lut_row in lut:
+        if lut_row[1] == "1":
+            new_outputs.append("1")
+        elif lut_row[1] == "0":
+            new_outputs.append("0")
+        else:
+            new_outputs.append("1" if lut_row[0][middle_element] == "1" else "0")
+    return BooleanNode.from_output_list(new_outputs)
 
 
 def filter_for_ke(generated_nodes, ke, original_ke, epsilon=0.01):
@@ -693,7 +722,7 @@ def plot_scatter(
     # plot scatter if first value and second value for
     rules = list(first_values.keys())
     for i, rule in enumerate(rules):
-        ax = axs[int(i / no_of_columns), i % no_of_columns]
+        ax = axs[int(i / no_of_columns), i % no_of_columns]  # TODO: [SRI] Fix the indexing
 
         ax.scatter(
             first_values[rule],
