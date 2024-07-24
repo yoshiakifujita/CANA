@@ -220,7 +220,8 @@ def fill_missing_outputs_as_maintenance(node: BooleanNode) -> BooleanNode:
 
     # check if there are any missing output values
     if "?" not in node.outputs:
-        raise ValueError("There are no missing output values in the node.")
+        # raise ValueError("There are no missing output values in the node.")
+        return node # removed error to allow for complete functions to pass through smoothly
     # Replace '?' in generated_node.outputs with 0 or 1 dependint on the middle element of the respective rule
     lut = node.look_up_table().values.tolist()
     middle_element = len(lut[0][0]) // 2  # middle input is reduced by 1 since indexing starts from 0

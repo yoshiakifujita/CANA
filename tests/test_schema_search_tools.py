@@ -36,8 +36,10 @@ def test_missing_outputs_as_maintenance():
 
         # Test case: No missing output values
         node3 = BooleanNode.from_output_list(["1", "0", "1", "0", "1", "1", "0", "1"])
-        with pytest.raises(ValueError, match="There are no missing output values in the node."):
-            fill_missing_outputs_as_maintenance(node3)
+        # with pytest.raises(ValueError, match="There are no missing output values in the node."):
+        #     fill_missing_outputs_as_maintenance(node3)
+        expected3 = ["1", "0", "1", "0", "1", "1", "0", "1"]
+        assert fill_missing_outputs_as_maintenance(node3).outputs == expected3
 
         # Test case: All missing output values
         node4 = BooleanNode.from_output_list(["?", "?", "?", "?", "?", "?", "?", "?"])
