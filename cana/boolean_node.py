@@ -405,6 +405,8 @@ class BooleanNode(object):
         Returns:
             (float)
         """
+        self._check_compute_canalization_variables(ts_coverage=True)  # compute ts_coverage if not already computed
+
         summand = 0
         # fTheta = a list of TS
         for fTheta in self._ts_coverage.values():
@@ -1344,3 +1346,75 @@ class BooleanNode(object):
                 result = False
 
         return result
+
+    def get_annihilation_generation_rules(self, split: bool = False) -> list:
+        """
+        Get the annihilation and generation rules of the node.
+
+        Args:
+            split (bool) : If True, return the annihilation and generation rules separately. If False, return the annihilation and generation rules together.
+
+        Returns:
+            (list) : A list of annihilation and generation rules.
+
+        Method:
+            Creates a Look_up_table for the node.
+            It generates new lookup tables for annihilation(using logic [RULE & (NOT X_4)]) and generation(using logic [NOT RULE & (X_4)]).
+            The rows that output 1 in the new schematas are the annihilations and generations.
+            We combine the two dataframes to get the final dataframe. We reassign the annihilation output to 0. We reassign the generation output to 1.
+            We return the final dataframe as a list.
+
+        """
+
+        lut = self.look_up_table()
+
+        annihilation_outputs_lut = (  # generates an LUT which is RULE & (NOT X_4), where X_4 is the middle input. the result is 1 for all the rules that annihilate and 0 for all the others.
+            ((lut["Out:"] == "0") & (lut["In:"].str[3] == "1")).apply(lambda x: "1" if x else "0").tolist()
+        )
+        annihilation = BooleanNode.from_output_list(annihilation_outputs_lut)
+        temp = annihilation.schemata_look_up_table()  # generating a new schemata from the new LUT to identify the rules that are annihilation
+        annihilation_rules = temp[temp["Output"] == 1]  # filtering the rules that are annihilation
+        annihilation_rules.loc[:, "Output"] = 0  # reassigning the output to 0 since it is an annihilation rule
+
+        generation_outputs = (  # generates an LUT which is NOT RULE & (X_4), where X_4 is the middle input. the result is 1 for all the rules that generate and 0 for all the others.
+            ((lut["Out:"] == "1") & (lut["In:"].str[3] == "0")).apply(lambda x: "1" if x else "0").tolist()
+        )
+        generation = BooleanNode.from_output_list(generation_outputs)
+
+        temp = generation.schemata_look_up_table()  # generating a new schemata from the new LUT to identify the rules that are generation
+        generation_rules = temp[temp["Output"] == 1]  # filtering the rules that are generation
+        generation_rules.loc[:, "Output"] = 1  # reassigning the output to 1 since it is a generation rule
+        if split:
+            return annihilation_rules.values.tolist(), generation_rules.values.tolist()
+        # combining the two dataframes to get the final dataframe
+        annihilation_generation_rules = pd.concat([annihilation_rules, generation_rules])
+
+        # converting it into a list
+        annihilation_generation_rules = annihilation_generation_rules.values.tolist()
+
+        return annihilation_generation_rules
+    
+    def input_symmetry_mean_anni_gen(self):
+        """
+        Input symmetry for the annihilation and generation rules of the node. 
+        The mean of the number of input values that are # for all annihilation and generation rules.
+
+
+
+        self._check_compute_canalization_variables(ts_coverage=True) # computing the ts_coverage if not already computed
+        
+        anni_gen = self.get_annihilation_generation_rules() # getting the annihilation generation rules for the node
+        anni_gen_coverage = [] # dict to store the rules covered in anni_gen
+        for key, value in fill_out_lut(anni_gen): # expanding anni_gen rules to get the rules covered in LUT
+            if value != '?':
+                anni_gen_coverage.append(key)
+
+        summand = 0 # summand for the mean of the number of input values that are # if the rule is covered in two-symbol
+        for rule in anni_gen_coverage: # only iterating over the rules that are covered in anni_gen
+            inner = 0
+            for ts in self._ts_coverage[rule]:
+                inner += sum(
+                            len(i) for i in ts[1]
+                        )
+            summand += inner / len(self._ts_coverage[rule])
+        return summand/len(anni_gen_coverage) # returning the mean of the number of input values that are not # for all anni_gen rules
