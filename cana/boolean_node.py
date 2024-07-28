@@ -1396,9 +1396,13 @@ class BooleanNode(object):
     
     def input_symmetry_mean_anni_gen(self):
         """
-        Input symmetry for the annihilation and generation rules of the node. 
+        Input symmetry for the annihilation and generation rules of the node.
         The mean of the number of input values that are # for all annihilation and generation rules.
 
+        Returns:
+            (float) : The mean of the number of input values that are # for all annihilation and generation rules.
+
+        """
 
 
         self._check_compute_canalization_variables(ts_coverage=True) # computing the ts_coverage if not already computed
