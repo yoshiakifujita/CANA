@@ -7,82 +7,6 @@ from automata.automata_rules import automata_output_list
 
 # list of useful functions for the schema search
 
-
-def concatenate(outputlist):
-    """
-    Mostly for converting output lists into one string for easy comparison with other strings.
-    
-    Example:
-    outputlist = ['0', '1', '0', '1', '1', '0', '1', '0']
-    concatenate(outputlist)
-    '01011010'
-    """
-    return "".join(outputlist)
-
-
-def check_spread_randomness(nodes, iterations=10000):
-    """
-    Check the spread randomness of the rules in the rule generator. This is to see if generated rules sample the possibility space uniformly.
-
-    Parameters
-    ----------
-    nodes : generator
-        Generator of nodes.
-    iterations : int
-        Number of iterations to run.
-
-    Returns
-    -------
-    list
-        List of counts.
-
-    How to interpret the results:
-    - If the values are close to 0.5, then the rules are spread randomly.
-    - If the values are close to 1 or 0, then the rules are not spread randomly.
-    - Numbers that are 1 or 0 are fixed values.
-
-    Example:
-    check_spread_randomness(nodes, iterations=10000)
-    """
-
-    rules = []
-    for i in range(iterations):
-        rule = next(nodes)
-        string = concatenate(rule.outputs)
-        rules.append(string)
-
-    # checking the no of 0 and 1 for each index in the string to see if the rules are spread randomply across the space
-    count = [0] * 128
-    for rule in rules:
-        for index, letter in enumerate(rule):
-            if letter == "1":
-                count[index] += 1
-
-    mean_count = [item / iterations for item in count]
-    print(mean_count)  # normalized count of 1s and 0s for each index
-
-    filtered_count = [num for num in mean_count if 0 < num < 1]
-    average = sum(filtered_count) / len(filtered_count)
-    print(
-        f"Total average probability for generated values for rows without fixed values: {average}."
-    )  # average of the absolute value of the normalized count of 1s and 0s for each index
-    # return count
-
-
-def check_for_duplicates(nodes, iterations=10000):
-    """
-    Check for duplicates in the rules generated.
-    """
-
-    rules = []
-    for i in range(iterations):
-        rule = next(nodes)
-        string = concatenate(rule.outputs)
-        rules.append(string)
-    print(f"Total rules generated:{len(rules)}")
-    print(f"Unique rules generated:{len(set(rules))}")
-
-
 def annihilation_generation_rules(output_list: list, split: bool = False) -> list:
     """
     This function takes in a list of outputs from an automata and returns a dataframe with the rules that are annihilation and generation rules.
@@ -545,207 +469,207 @@ def min_max_and_parent_rule_values(
         return min_max
 
 
-def plot_hist(
-    generated_node_values,
-    value_type=None,
-    no_of_columns=4,
-    title=None,
-    save=False,
-    filename=None,
-    include_parent=False,
-) -> None:
-    """
-    Plot histogram of generated node values.
+# def plot_hist(
+#     generated_node_values,
+#     value_type=None,
+#     no_of_columns=4,
+#     title=None,
+#     save=False,
+#     filename=None,
+#     include_parent=False,
+# ) -> None:
+#     """
+#     Plot histogram of generated node values.
 
-    Args:
-    generated_node_values (dict): Dictionary of generated node values.
-    value_type (str): Type of value to plot. Must be 'ke' or 'bias'.
-    no_of_columns (int): Number of columns in the plot.
+#     Args:
+#     generated_node_values (dict): Dictionary of generated node values.
+#     value_type (str): Type of value to plot. Must be 'ke' or 'bias'.
+#     no_of_columns (int): Number of columns in the plot.
 
-    Returns:
-    None
+#     Returns:
+#     None
 
-    Example:
-    generated_node_values = {
-        "Rule 1": [0.1, 0.2, 0.3, 0.4, 0.5],
-        "Rule 2": [0.2, 0.3, 0.4, 0.5, 0.6],
-    }
-    plot_hist(generated_node_values, value_type='ke')
-    """
+#     Example:
+#     generated_node_values = {
+#         "Rule 1": [0.1, 0.2, 0.3, 0.4, 0.5],
+#         "Rule 2": [0.2, 0.3, 0.4, 0.5, 0.6],
+#     }
+#     plot_hist(generated_node_values, value_type='ke')
+#     """
 
-    if value_type == "ke":
-        parent_rule_label = "Parent Rule $K_e$"
-        xlabel = "Effective Connectivity"
-        ylabel = "Count"
-    elif value_type == "bias":
-        parent_rule_label = "Parent Rule Bias"
-        xlabel = "Bias"
-        ylabel = "Count"
-    elif type(value_type) is not str and value_type not in ["ke", "bias"]:
-        xlabel = value_type
-        ylabel = "Count"
-    else:
-        raise ValueError("Invalid value_type. Must be 'ke' or 'bias'.")
-    if title is None:
-        title = f"Distribution of Generated {value_type.capitalize()} Values"
+#     if value_type == "ke":
+#         parent_rule_label = "Parent Rule $K_e$"
+#         xlabel = "Effective Connectivity"
+#         ylabel = "Count"
+#     elif value_type == "bias":
+#         parent_rule_label = "Parent Rule Bias"
+#         xlabel = "Bias"
+#         ylabel = "Count"
+#     elif type(value_type) is not str and value_type not in ["ke", "bias"]:
+#         xlabel = value_type
+#         ylabel = "Count"
+#     else:
+#         raise ValueError("Invalid value_type. Must be 'ke' or 'bias'.")
+#     if title is None:
+#         title = f"Distribution of Generated {value_type.capitalize()} Values"
 
-    total_plots = len(generated_node_values)
-    no_of_rows = int((total_plots / no_of_columns) + 1)
-    # plot hist ke in subplots
-    fig, axs = plt.subplots(no_of_rows, no_of_columns, figsize=(25, 15))
-    fig.suptitle(
-        title,
-        fontsize=25,
-    )
-    min_max, parent_rule_values = min_max_and_parent_rule_values(
-        automata_output_list,
-        generated_node_values,
-        value_type=value_type,
-        include_parent=include_parent,
-    )
-    for i, rule in enumerate(generated_node_values):
-        ax = axs.flatten()[i]
-        # make each subplot axes equal in value range
-        ax.set_xlim(min_max)
-        # ax.set_ylim(0, max_count)
+#     total_plots = len(generated_node_values)
+#     no_of_rows = int((total_plots / no_of_columns) + 1)
+#     # plot hist ke in subplots
+#     fig, axs = plt.subplots(no_of_rows, no_of_columns, figsize=(25, 15))
+#     fig.suptitle(
+#         title,
+#         fontsize=25,
+#     )
+#     min_max, parent_rule_values = min_max_and_parent_rule_values(
+#         automata_output_list,
+#         generated_node_values,
+#         value_type=value_type,
+#         include_parent=include_parent,
+#     )
+#     for i, rule in enumerate(generated_node_values):
+#         ax = axs.flatten()[i]
+#         # make each subplot axes equal in value range
+#         ax.set_xlim(min_max)
+#         # ax.set_ylim(0, max_count)
 
-        ax.hist(generated_node_values[rule], bins=100, color="blue", alpha=0.7)
-        ax.set_title(rule, fontsize=20)
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.text(
-            0.2,
-            0.9,
-            f"Total Count: {len(generated_node_values[rule])}",
-            horizontalalignment="center",
-            verticalalignment="center",
-            transform=ax.transAxes,
-            fontsize=10,
-        )
+#         ax.hist(generated_node_values[rule], bins=100, color="blue", alpha=0.7)
+#         ax.set_title(rule, fontsize=20)
+#         ax.set_xlabel(xlabel)
+#         ax.set_ylabel(ylabel)
+#         ax.text(
+#             0.2,
+#             0.9,
+#             f"Total Count: {len(generated_node_values[rule])}",
+#             horizontalalignment="center",
+#             verticalalignment="center",
+#             transform=ax.transAxes,
+#             fontsize=10,
+#         )
 
-        if parent_rule_values and parent_rule_label:
-            # plot parent rule value as a line
-            ax.axvline(
-                parent_rule_values[rule],
-                color="red",
-                linestyle="--",
-                label=f"{parent_rule_label}: {parent_rule_values[rule]:.2f}",
-            )
-            # ax.text(
-            #     parent_rule_values[rule],
-            #     .5,
-            #     f"{parent_rule_values[rule]:.2f}",
-            #     rotation=90,
-            #     fontsize=10,
-            # )
+#         if parent_rule_values and parent_rule_label:
+#             # plot parent rule value as a line
+#             ax.axvline(
+#                 parent_rule_values[rule],
+#                 color="red",
+#                 linestyle="--",
+#                 label=f"{parent_rule_label}: {parent_rule_values[rule]:.2f}",
+#             )
+#             # ax.text(
+#             #     parent_rule_values[rule],
+#             #     .5,
+#             #     f"{parent_rule_values[rule]:.2f}",
+#             #     rotation=90,
+#             #     fontsize=10,
+#             # )
 
-            ax.legend(fontsize="large", loc="upper right")
+#             ax.legend(fontsize="large", loc="upper right")
 
-    plt.tight_layout()
-    plt.subplots_adjust(top=0.92)
-    if save:
-        plt.savefig(filename)
-    plt.show()
+#     plt.tight_layout()
+#     plt.subplots_adjust(top=0.92)
+#     if save:
+#         plt.savefig(filename)
+#     plt.show()
 
 
-def plot_scatter(
-    first_values,
-    second_values,
-    label: list[str, str] = ["ke", "bias"],
-    no_of_columns=4,
-    title=None,
-    save=False,
-    filename=None,
-    include_parent=False,
-) -> None:
-    """
-    Plot scatter plot of generated rules.
+# def plot_scatter(
+#     first_values,
+#     second_values,
+#     label: list[str, str] = ["ke", "bias"],
+#     no_of_columns=4,
+#     title=None,
+#     save=False,
+#     filename=None,
+#     include_parent=False,
+# ) -> None:
+#     """
+#     Plot scatter plot of generated rules.
 
-    Args:
-    first_values (dict): Dictionary of first values.
-    second_values (dict): Dictionary of second values.
-    label (list): List of labels. Must be 'ke' or 'bias'.
-    no_of_columns (int): Number of columns in the plot.
+#     Args:
+#     first_values (dict): Dictionary of first values.
+#     second_values (dict): Dictionary of second values.
+#     label (list): List of labels. Must be 'ke' or 'bias'.
+#     no_of_columns (int): Number of columns in the plot.
 
-    Returns:
-    None
+#     Returns:
+#     None
 
-    Example:
-    first_values = {
-        "Rule 1": [0.1, 0.2, 0.3, 0.4, 0.5],
-        "Rule 2": [0.2, 0.3, 0.4, 0.5, 0.6],
-    }
-    second_values = {
-        "Rule 1": [0.2, 0.3, 0.4, 0.5, 0.6],
-        "Rule 2": [0.3, 0.4, 0.5, 0.6, 0.7],
-    }
-    plot_scatter(first_values, second_values, label=['ke', 'bias'])
-    """
-    if label[0] == label[1]:
-        raise ValueError("Invalid labels. Must be different.")
-    if label[0] == "ke":
-        xlabel = "$K_e$"
-        if label[1] == "bias":
-            ylabel = "Bias"
+#     Example:
+#     first_values = {
+#         "Rule 1": [0.1, 0.2, 0.3, 0.4, 0.5],
+#         "Rule 2": [0.2, 0.3, 0.4, 0.5, 0.6],
+#     }
+#     second_values = {
+#         "Rule 1": [0.2, 0.3, 0.4, 0.5, 0.6],
+#         "Rule 2": [0.3, 0.4, 0.5, 0.6, 0.7],
+#     }
+#     plot_scatter(first_values, second_values, label=['ke', 'bias'])
+#     """
+#     if label[0] == label[1]:
+#         raise ValueError("Invalid labels. Must be different.")
+#     if label[0] == "ke":
+#         xlabel = "$K_e$"
+#         if label[1] == "bias":
+#             ylabel = "Bias"
 
-    elif label[0] == "bias":
-        xlabel = "Bias"
-        if label[1] == "ke":
-            ylabel = "$K_e$"
-    else:
-        raise ValueError("Invalid labels. Must be 'ke' or 'bias'.")
+#     elif label[0] == "bias":
+#         xlabel = "Bias"
+#         if label[1] == "ke":
+#             ylabel = "$K_e$"
+#     else:
+#         raise ValueError("Invalid labels. Must be 'ke' or 'bias'.")
 
-    if title is None:
-        title = f"Scatter plot of {xlabel} and {ylabel} of generated rules."
+#     if title is None:
+#         title = f"Scatter plot of {xlabel} and {ylabel} of generated rules."
 
-    total_plots = len(first_values)
-    no_of_rows = (
-        int((total_plots / no_of_columns) + 1) if total_plots > no_of_columns else 1
-    )
+#     total_plots = len(first_values)
+#     no_of_rows = (
+#         int((total_plots / no_of_columns) + 1) if total_plots > no_of_columns else 1
+#     )
 
-    fig, axs = plt.subplots(no_of_rows, no_of_columns, figsize=(25, 15))
-    fig.suptitle(
-        title,
-        fontsize=25,
-    )
-    min_max_x, parent_rule_values_x = min_max_and_parent_rule_values(
-        automata_output_list,
-        first_values,
-        value_type=label[0],
-        include_parent=include_parent,
-    )
-    min_max_y, parent_rule_values_y = min_max_and_parent_rule_values(
-        automata_output_list,
-        second_values,
-        value_type=label[1],
-        include_parent=include_parent,
-    )
-    # plot scatter if first value and second value for
-    rules = list(first_values.keys())
-    for i, rule in enumerate(rules):
-        ax = axs[int(i / no_of_columns), i % no_of_columns]  # TODO: [SRI] Fix the indexing
+#     fig, axs = plt.subplots(no_of_rows, no_of_columns, figsize=(25, 15))
+#     fig.suptitle(
+#         title,
+#         fontsize=25,
+#     )
+#     min_max_x, parent_rule_values_x = min_max_and_parent_rule_values(
+#         automata_output_list,
+#         first_values,
+#         value_type=label[0],
+#         include_parent=include_parent,
+#     )
+#     min_max_y, parent_rule_values_y = min_max_and_parent_rule_values(
+#         automata_output_list,
+#         second_values,
+#         value_type=label[1],
+#         include_parent=include_parent,
+#     )
+#     # plot scatter if first value and second value for
+#     rules = list(first_values.keys())
+#     for i, rule in enumerate(rules):
+#         ax = axs[int(i / no_of_columns), i % no_of_columns]  # TODO: [SRI] Fix the indexing
 
-        ax.scatter(
-            first_values[rule],
-            second_values[rule],
-            label=f"Rule {rule}",
-            alpha=0.5,
-        )
+#         ax.scatter(
+#             first_values[rule],
+#             second_values[rule],
+#             label=f"Rule {rule}",
+#             alpha=0.5,
+#         )
 
-        ax.set_title(f"Rule {rule}")
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.grid()
-        ax.set_xlim(min_max_x)
-        ax.set_ylim(min_max_y)
+#         ax.set_title(f"Rule {rule}")
+#         ax.set_xlabel(xlabel)
+#         ax.set_ylabel(ylabel)
+#         ax.grid()
+#         ax.set_xlim(min_max_x)
+#         ax.set_ylim(min_max_y)
 
-        # plot parent rule values
-        ax.scatter(parent_rule_values_x[rule], parent_rule_values_y[rule], c="red")
-        ax.legend()
+#         # plot parent rule values
+#         ax.scatter(parent_rule_values_x[rule], parent_rule_values_y[rule], c="red")
+#         ax.legend()
 
-    for i in range(total_plots, no_of_columns * no_of_rows):
-        fig.delaxes(axs[int(i / no_of_columns), i % no_of_columns])
-    plt.tight_layout()
-    if save:
-        plt.savefig(filename)
-    plt.show()
+#     for i in range(total_plots, no_of_columns * no_of_rows):
+#         fig.delaxes(axs[int(i / no_of_columns), i % no_of_columns])
+#     plt.tight_layout()
+#     if save:
+#         plt.savefig(filename)
+#     plt.show()
