@@ -1391,7 +1391,8 @@ class BooleanNode(object):
 
         # converting it into a list
         annihilation_generation_rules = annihilation_generation_rules.values.tolist()
-
+        if len(annihilation_generation_rules) == 0:
+            raise ValueError("No annihilation or generation rules found.")
         return annihilation_generation_rules
     
     def input_symmetry_mean_anni_gen(self):
