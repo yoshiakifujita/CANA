@@ -1060,8 +1060,6 @@ class BooleanNode(object):
 
         Note:
             The required node bias should be a float value between 0 and 1.
-        TODO: [SRI] Add all progress to report.
-        TODO: [SRI] generate wildcards with a given probability instead of permuting the total number. Currently we only shuffle each line in place.
         """
         generated_node = self
         bias_for_print = (
@@ -1422,4 +1420,107 @@ class BooleanNode(object):
                             len(i) for i in ts[1]
                         )
             summand += inner / len(self._ts_coverage[rule])
-        return summand/len(anni_gen_coverage) # returning the mean of the number of input values that are not # for all anni_gen rules
+        return (
+            summand / len(anni_gen_coverage)
+        )  # returning the mean of the number of input values that are not # for all anni_gen rules
+
+    def get_anni_gen_coverage(self):
+        """
+        Gets the coverage of the annihilation generation rules in the LUT.
+
+        Returns:
+        anni_gen_coverage: dict
+            A dictionary with the keys as the annihilation generation rules and the values as the rules covered in the LUT.
+        """
+
+        anni_gen = self.get_annihilation_generation_rules()
+
+        def _insert_char(la, lb):
+            """
+            la: list of strings
+            lb: list of strings
+
+            returns a list of strings with the elements of la and lb interleaved
+            """
+            lc = []
+            for i in range(len(lb)):
+                lc.append(la[i])
+                lc.append(lb[i])
+            lc.append(la[-1])
+            return "".join(lc)
+
+        anni_gen_coverage = {}
+        for line in anni_gen:
+            input = line[0]
+            chunks = input.split("#")
+            expansions = set()
+            if len(chunks) > 1:
+                for i in product(*[("0", "1")] * (len(chunks) - 1)):
+                    expansions.add(_insert_char(chunks, i))
+            else:
+                for i in [line]:
+                    expansions.add(i)
+            for exp in expansions:
+                if exp in anni_gen_coverage:
+                    anni_gen_coverage[exp].append(input)
+                else:
+                    anni_gen_coverage[exp] = [input]
+        return anni_gen_coverage
+
+    def input_redundancy_anni_gen(self, operator=mean, norm=False):
+        """
+        The redundancy of the annihilation and generation rules of the node.
+        The mean of the number of '#' in the annihilation and generation rules that cover a row in the LUT.
+
+        Args:
+            operator (function) : The operator to use to calculate the redundancy. Default is mean.
+            norm (bool) : If True, normalize the redundancy.
+
+        Returns:
+            (float) : The redundancy of the annihilation and generation rules of the node.
+
+        See Also:
+            :func:`~cana.boolean_node.BooleanNode.get_anni_gen_coverage`
+        """
+        if not hasattr(operator, "__call__"):
+            raise AttributeError(
+                'The operator you selected must be a function. Try "min", "statitics.mean", or "max".'
+            )
+
+        anni_gen_coverage = {}
+        anni_gen_coverage = self.get_anni_gen_coverage()
+        redundancy = [
+            operator((rule.count("#") for rule in anni_gen_coverage[binstate]))
+            for binstate in anni_gen_coverage
+        ]
+
+        k_r = sum(redundancy) / len(anni_gen_coverage)
+
+        if norm:
+            # Normalizes
+            k_r = k_r / self.k
+
+        return k_r
+
+    def effective_connectivity_anni_gen(self, operator=mean, norm=False):
+        """
+        The effective connectivity of the annihilation and generation rules of the node.
+        The Effective Connectiviy is the mean number of input nodes needed to determine the transition of the node. We take the average effective connectivity of the annihilation and generation rules.
+
+        Args:
+            operator (function) : The operator to use to calculate the effective connectivity. Default is mean.
+            norm (bool) : If True, normalize the effective connectivity.
+
+        Returns:
+            (float) : The effective connectivity of the annihilation and generation rules of the node.
+
+        See Also:
+            :func:`get_anni_gen_coverage`, :func:`anni_gen_redundancy`, :func:`input_redundancy`, :func:`effective_connectivity`.
+        """
+        anni_gen_k_r = self.anni_gen_redundancy(operator=operator, norm=False)
+        anni_gen_k_e = self.k - anni_gen_k_r
+
+        if norm:
+            anni_gen_k_e = anni_gen_k_e / self.k
+
+        return anni_gen_k_e
