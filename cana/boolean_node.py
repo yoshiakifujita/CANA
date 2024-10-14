@@ -1458,7 +1458,7 @@ class BooleanNode(object):
                 for i in product(*[("0", "1")] * (len(chunks) - 1)):
                     expansions.add(_insert_char(chunks, i))
             else:
-                for i in [line]:
+                for i in [input]:
                     expansions.add(i)
             for exp in expansions:
                 if exp in anni_gen_coverage:
