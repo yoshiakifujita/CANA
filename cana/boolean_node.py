@@ -1430,43 +1430,62 @@ class BooleanNode(object):
 
         Returns:
         anni_gen_coverage: dict
-            A dictionary with the keys as the annihilation generation rules and the values as the rules covered in the LUT.
+            A dictionary with the keys as the LUT rows and the values are the annihilation generation schemata input strings (e.g. "#0#1#0") that covers it.
         """
-
-        anni_gen = self.get_annihilation_generation_rules()
-
-        def _insert_char(la, lb):
+        def _schemata_coverage(schemata):
             """
-            la: list of strings
-            lb: list of strings
+            Gets the coverage of the schemata in the LUT.
+            The Schemata can be partial i.e. they need not cover all the rows in the LUT.
+            This is different from the pi_coverage and ts_coverage which are complete.
+            The Schemata must be a list in the form:
+            [
+                ["#0#1#0", "1"],
+                ["#0#1#1", "0"],
+                ["#1#0#0", "1"],
+                ["#1#0#1", "0"],
+                ["#1#1#0", "1"],
+                ["#1#1#1", "0"]
+            ]
 
-            returns a list of strings with the elements of la and lb interleaved
+            Returns:
+            coverage: dict
+                A dictionary with the keys as the LUT rows and the values as the schemata input strings (e.g. "#0#1#0") that covers it.
             """
-            lc = []
-            for i in range(len(lb)):
-                lc.append(la[i])
-                lc.append(lb[i])
-            lc.append(la[-1])
-            return "".join(lc)
+            def _insert_char(la, lb):
+                """
+                la: list of strings
+                lb: list of strings
 
-        anni_gen_coverage = {}
-        for line in anni_gen:
-            input = line[0]
-            chunks = input.split("#")
-            expansions = set()
-            if len(chunks) > 1:
-                for i in product(*[("0", "1")] * (len(chunks) - 1)):
-                    expansions.add(_insert_char(chunks, i))
-            else:
-                for i in [input]:
-                    expansions.add(i)
-            for exp in expansions:
-                if exp in anni_gen_coverage:
-                    anni_gen_coverage[exp].append(input)
+                returns a list of strings with the elements of la and lb interleaved
+                """
+                lc = []
+                for i in range(len(lb)):
+                    lc.append(la[i])
+                    lc.append(lb[i])
+                lc.append(la[-1])
+                return "".join(lc)
+
+            coverage = {}
+            for line in schemata:
+                input = line[0]
+                chunks = input.split("#")
+                expansions = set()
+                if len(chunks) > 1:
+                    for i in product(*[("0", "1")] * (len(chunks) - 1)):
+                        expansions.add(_insert_char(chunks, i))
                 else:
-                    anni_gen_coverage[exp] = [input]
+                    for i in [input]:
+                        expansions.add(i)
+                for exp in expansions:
+                    if exp in coverage:
+                        coverage[exp].append(input)
+                    else:
+                        coverage[exp] = [input]
+            return coverage
+        anni_gen = self.get_annihilation_generation_rules()
+        anni_gen_coverage = _schemata_coverage(anni_gen)
         return anni_gen_coverage
-
+    
     def input_redundancy_anni_gen(self, operator=mean, norm=False):
         """
         The redundancy of the annihilation and generation rules of the node.
