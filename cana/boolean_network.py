@@ -545,7 +545,7 @@ class BooleanNetwork:
                 self._eg = nx.DiGraph(
                     name="Effective Graph: "
                     + self.name
-                    + "(Threshold: {threshold:.2f})".format(threshold=threshold)
+                    + f"(Threshold: {threshold:.2f})".format(threshold=threshold)
                 )
             else:
                 self._eg = nx.DiGraph(
