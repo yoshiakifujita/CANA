@@ -15,7 +15,7 @@ Main class for Boolean node objects.
 #   MIT license.
 from __future__ import division
 
-from itertools import combinations, compress, product
+from itertools import combinations, compress, product, permutations
 from statistics import mean
 
 import networkx as nx
@@ -34,6 +34,7 @@ from cana.utils import input_monotone, ncr, fill_out_lut
 import random
 import warnings
 from math import comb
+from collections import deque
 
 
 class BooleanNode(object):
@@ -447,7 +448,19 @@ class BooleanNode(object):
         return df
 
     def schemata_look_up_table(
-        self, type="pi", pi_symbol="#", ts_symbol_list=["\u030a", "\u032f"]
+        self,
+        type="pi",
+        pi_symbol="#",
+        ts_symbol_list=[
+            "\u030a",  # Ring above
+            "\u032f",  # Inverted breve below
+            "\u0303",  # Tilde
+            "\u0304",  # Macron
+            "\u0305",  # Overline
+            "\u0306",  # Breve
+            "\u0307",  # Dot above
+            "\u0308",  # Diaeresis
+        ],
     ):
         """Returns the simplified schemata Look Up Table (LUT)
 
@@ -952,13 +965,15 @@ class BooleanNode(object):
 
         return input_sign_list
 
+    @classmethod
     def from_partial_lut(
+        self,
         partial_lut: list,
         fill_missing_output_randomly: bool = False,
         fill_clashes: bool = False,
         verbose: bool = False,
-        *args,
-        **kwargs,
+        *args,  # keeping this because it is used in the from_output_list method. I don't know what it does.
+        **kwargs,  # same as above
     ) -> "BooleanNode":
         """
         Instantiate a Boolean Node from a partial look-up table.
@@ -1345,15 +1360,21 @@ class BooleanNode(object):
 
         return result
 
-    def get_annihilation_generation_rules(self, split: bool = False) -> list:
+    def get_annihilation_generation_rules(
+        self, type: str = "wildcard", split: bool = False
+    ) -> list:
         """
         Get the annihilation and generation rules of the node.
+        The annihilation rules are the rules that output 0 when the middle input is 1.
+        The generation rules are the rules that output 1 when the middle input is 0.
+
 
         Args:
             split (bool) : If True, return the annihilation and generation rules separately. If False, return the annihilation and generation rules together.
+            type (str) : The type of coverage function to use. Options are 'wildcard' and 'ts', where 'ts' is the two-symbol version.
 
         Returns:
-            (list) : A list of annihilation and generation rules.
+            (list) : A list of annihilation and generation rules. If 'ts' is selected, the list contains the input and two-symbol indices for each rule.
 
         Method:
             Creates a Look_up_table for the node.
@@ -1362,36 +1383,82 @@ class BooleanNode(object):
             We combine the two dataframes to get the final dataframe. We reassign the annihilation output to 0. We reassign the generation output to 1.
             We return the final dataframe as a list.
 
+        Example:
+            >>> get_annihilation_generation_rules(type='wildcard', split=False)
+            [('0##1##0', 0), ('0#01###', 0), ('0##10##', 0), ('1##0##1', 1), ('##10##1', 1), ('###01#1', 1)]
+
+            >>> get_annihilation_generation_rules(type='ts', split=False)
+            [['0#01###', [[2, 4, 6]]], ['1##0##1', [[0, 2, 4]]]], where inputs with indicies 2,4,6 in the first rule are interchangeable and inputs with indicies 0,2,4 in the second rule are interchangeable.
+
+
         """
 
+        if type not in ["wildcard", "ts"]:
+            raise ValueError("Invalid type. Expected 'wildcard' or 'ts'.")
+
         lut = self.look_up_table()
-
         annihilation_outputs_lut = (  # generates an LUT which is RULE & (NOT X_4), where X_4 is the middle input. the result is 1 for all the rules that annihilate and 0 for all the others.
-            ((lut["Out:"] == "0") & (lut["In:"].str[3] == "1")).apply(lambda x: "1" if x else "0").tolist()
+            ((lut["Out:"] == "0") & (lut["In:"].str[3] == "1"))
+            .apply(lambda x: "1" if x else "0")
+            .tolist()
         )
+        generation_outputs_lut = (  # generates an LUT which is NOT RULE & (X_4), where X_4 is the middle input. the result is 1 for all the rules that generate and 0 for all the others.
+            ((lut["Out:"] == "1") & (lut["In:"].str[3] == "0"))
+            .apply(lambda x: "1" if x else "0")
+            .tolist()
+        )
+
         annihilation = BooleanNode.from_output_list(annihilation_outputs_lut)
-        temp = annihilation.schemata_look_up_table()  # generating a new schemata from the new LUT to identify the rules that are annihilation
-        annihilation_rules = temp[temp["Output"] == 1]  # filtering the rules that are annihilation
-        annihilation_rules.loc[:, "Output"] = 0  # reassigning the output to 0 since it is an annihilation rule
+        generation = BooleanNode.from_output_list(generation_outputs_lut)
 
-        generation_outputs = (  # generates an LUT which is NOT RULE & (X_4), where X_4 is the middle input. the result is 1 for all the rules that generate and 0 for all the others.
-            ((lut["Out:"] == "1") & (lut["In:"].str[3] == "0")).apply(lambda x: "1" if x else "0").tolist()
-        )
-        generation = BooleanNode.from_output_list(generation_outputs)
+        if type == "wildcard":
+            annihilation._check_compute_canalization_variables(prime_implicants=True)
+            generation._check_compute_canalization_variables(prime_implicants=True)
 
-        temp = generation.schemata_look_up_table()  # generating a new schemata from the new LUT to identify the rules that are generation
-        generation_rules = temp[temp["Output"] == 1]  # filtering the rules that are generation
-        generation_rules.loc[:, "Output"] = 1  # reassigning the output to 1 since it is a generation rule
-        if split:
-            return annihilation_rules.values.tolist(), generation_rules.values.tolist()
-        # combining the two dataframes to get the final dataframe
-        annihilation_generation_rules = pd.concat([annihilation_rules, generation_rules])
+            # get the prime implicants for the annihilation and generation
+            pia = annihilation._prime_implicants.get("1", [])
+            pig = generation._prime_implicants.get("1", [])
 
-        # converting it into a list
-        annihilation_generation_rules = annihilation_generation_rules.values.tolist()
-        if len(annihilation_generation_rules) == 0:
-            raise ValueError("No annihilation or generation rules found.")
-        return annihilation_generation_rules
+            anni_schemata = []
+            gen_schemata = []
+            for item in pia:
+                anni_schemata.append((item, 0))
+            for item in pig:
+                gen_schemata.append((item, 1))
+            if split:
+                return anni_schemata, gen_schemata
+            return anni_schemata + gen_schemata
+
+        elif type == "ts":
+            generation._check_compute_canalization_variables(two_symbols=True)
+            annihilation._check_compute_canalization_variables(two_symbols=True)
+
+            # get the two-symbol logic
+            tsa = annihilation._two_symbols[1]
+            tsg = generation._two_symbols[1]
+
+            # replace 2 with # (other all ts coverage functions are built with '2' for wildcard)
+            tsa = [
+                [
+                    item.replace("2", "#") if isinstance(item, str) else item
+                    for item in sublist
+                ]
+                for sublist in tsa
+            ]
+            tsg = [
+                [
+                    item.replace("2", "#") if isinstance(item, str) else item
+                    for item in sublist
+                ]
+                for sublist in tsg
+            ]
+
+            # keep only schemata inputs and the two symbol indices for each row
+            tsa = [sublist[:2] for sublist in tsa]
+            tsg = [sublist[:2] for sublist in tsg]
+            if split:
+                return tsa, tsg
+            return tsa + tsg
     
     def input_symmetry_mean_anni_gen(self):
         """
@@ -1415,7 +1482,7 @@ class BooleanNode(object):
         summand = 0 # summand for the mean of the number of input values that are # if the rule is covered in two-symbol
         for rule in anni_gen_coverage: # only iterating over the rules that are covered in anni_gen
             inner = 0
-            for ts in self._ts_coverage[rule]:
+            for ts in self._ts_coverage[rule]:  # TODO: [SRI] CHECK IF THIS IS CORRECT
                 inner += sum(
                             len(i) for i in ts[1]
                         )
@@ -1424,68 +1491,147 @@ class BooleanNode(object):
             summand / len(anni_gen_coverage)
         )  # returning the mean of the number of input values that are not # for all anni_gen rules
 
-    def get_anni_gen_coverage(self):
+    def get_anni_gen_coverage(self, type="wildcard"):
         """
-        Gets the coverage of the annihilation generation rules in the LUT.
+        Computes the coverage of the annihilation and generation functions of the BooleanNode.
+        This is different from the pi_coverage() and ts_coverage() which compute regular prime implicant and two-symbol coverage.
+
+        The coverage is computed in two ways:
+        1. wildcard: computes the wildcard schemata that cover the LUT entries.
+        2. ts: computes the two-symbol schemata that cover the LUT entries.
+
+        Parameters:
+        -----------
+        n: BooleanNode
+            The BooleanNode for which the coverage is computed.
+        type: str
+            The type of coverage to compute. Can be either 'wildcard' or 'ts'.
 
         Returns:
-        anni_gen_coverage: dict
-            A dictionary with the keys as the LUT rows and the values are the annihilation generation schemata input strings (e.g. "#0#1#0") that covers it.
+        --------
+        For type='wildcard':
+            A dict: Keys- LUT entries in binary format, Values- the wildcard schemata that covers the LUT entry.
+
+            Example:
+            '0100100': {'#1#01#0', '#1#010#', '#1001##'},
+
+        For type='ts':
+            A dict: Keys- LUT entries in binary format, Values- the two symbol schemata that covers the LUT entry.
+
+            Example:
+                '0011010': [
+                ['0021210', [], [[0, 1, 6], [3, 5], [2, 4]]],
+                ['2121020', [[1, 5]], [[4, 6], [1, 3], [0, 2, 5]]]
+                ]
+                Here, the LUT entry 0011010 is covered by two schemata. The first schema is 0021210 with no ts-indices, zero-indices are [0, 1, 6], one-indices are [3, 5] and wildcard-indices are [2, 4]. The second schema is 2121020 with ts-indices [1, 5], zero-indices are [4, 6], one-indices are [1, 3] and wildcard-indices are [0, 2, 5].
         """
-        def _schemata_coverage(schemata):
+        if type not in ["wildcard", "ts"]:
+            raise ValueError("Invalid type. Expected 'wildcard' or 'ts'.")
+
+        lut = self.look_up_table()
+        annihilation_outputs_lut = (
+            ((lut["Out:"] == "0") & (lut["In:"].str[3] == "1"))
+            .apply(lambda x: "1" if x else "0")
+            .tolist()
+        )
+        generation_outputs = (
+            ((lut["Out:"] == "1") & (lut["In:"].str[3] == "0"))
+            .apply(lambda x: "1" if x else "0")
+            .tolist()
+        )
+
+        annihilation = BooleanNode.from_output_list(annihilation_outputs_lut)
+        generation = BooleanNode.from_output_list(generation_outputs)
+
+        def _get_wildcard_coverage(
+            annihilation: BooleanNode, generation: BooleanNode
+        ) -> dict:
             """
-            Gets the coverage of the schemata in the LUT.
-            The Schemata can be partial i.e. they need not cover all the rows in the LUT.
-            This is different from the pi_coverage and ts_coverage which are complete.
-            The Schemata must be a list in the form:
-            [
-                ["#0#1#0", "1"],
-                ["#0#1#1", "0"],
-                ["#1#0#0", "1"],
-                ["#1#0#1", "0"],
-                ["#1#1#0", "1"],
-                ["#1#1#1", "0"]
-            ]
+            Helper function for get_anni_gen_coverage().
+            Computes which LUT entries are covered by the wildcard schemata of the annihilation and generation functions.
 
-            Returns:
-            coverage: dict
-                A dictionary with the keys as the LUT rows and the values as the schemata input strings (e.g. "#0#1#0") that covers it.
             """
-            def _insert_char(la, lb):
-                """
-                la: list of strings
-                lb: list of strings
+            annihilation._check_compute_canalization_variables(prime_implicants=True)
+            generation._check_compute_canalization_variables(prime_implicants=True)
 
-                returns a list of strings with the elements of la and lb interleaved
-                """
-                lc = []
-                for i in range(len(lb)):
-                    lc.append(la[i])
-                    lc.append(lb[i])
-                lc.append(la[-1])
-                return "".join(lc)
+            pia = annihilation._prime_implicants.get("1", [])
+            pig = generation._prime_implicants.get("1", [])
 
-            coverage = {}
-            for line in schemata:
-                input = line[0]
-                chunks = input.split("#")
-                expansions = set()
-                if len(chunks) > 1:
-                    for i in product(*[("0", "1")] * (len(chunks) - 1)):
-                        expansions.add(_insert_char(chunks, i))
-                else:
-                    for i in [input]:
-                        expansions.add(i)
-                for exp in expansions:
-                    if exp in coverage:
-                        coverage[exp].append(input)
+            pia_coverage = {
+                k: v.intersection(pia) for k, v in annihilation.pi_coverage().items()
+            }
+            pig_coverage = {
+                k: v.intersection(pig) for k, v in generation.pi_coverage().items()
+            }
+
+            annigen_coveragev2 = {}
+            for item in [pia_coverage, pig_coverage]:
+                for key, value in item.items():
+                    if key in annigen_coveragev2:
+                        annigen_coveragev2[key].update(value)
                     else:
-                        coverage[exp] = [input]
-            return coverage
-        anni_gen = self.get_annihilation_generation_rules()
-        anni_gen_coverage = _schemata_coverage(anni_gen)
-        return anni_gen_coverage
-    
+                        annigen_coveragev2[key] = value
+
+            return annigen_coveragev2
+
+        def _get_ts_coverage(
+            annihilation: BooleanNode, generation: BooleanNode, k: int
+        ) -> dict:
+            """
+            Helper function for get_anni_gen_coverage().
+            Computes which LUT entries are covered by the two-symbol schemata of the annihilation and generation functions.
+            """
+
+            def _expand_schema(line: str) -> list:
+                def _insert_char(la, lb):
+                    return "".join([la[i] + lb[i] for i in range(len(lb))] + [la[-1]])
+
+                chunks = line.split("2")
+                if len(chunks) > 1:
+                    return [
+                        _insert_char(chunks, i)
+                        for i in product(*[("0", "1")] * (len(chunks) - 1))
+                    ]
+                return [line]
+
+            def _expand_ts_logic(two_symbols, permut_indexes):
+                if isinstance(two_symbols, str):
+                    two_symbols = [list(two_symbols)]
+                Q = deque(two_symbols)
+                logics = []
+                while Q:
+                    implicant = np.array(Q.pop())
+                    for idxs in permut_indexes:
+                        for vals in permutations(implicant[idxs], len(idxs)):
+                            _implicant = np.copy(implicant)
+                            _implicant[idxs] = vals
+                            if _implicant.tolist() not in logics:
+                                logics.append(_implicant.tolist())
+                                Q.append(_implicant.tolist())
+                return logics
+
+            generation._check_compute_canalization_variables(two_symbols=True)
+            annihilation._check_compute_canalization_variables(two_symbols=True)
+
+            tsa = annihilation._two_symbols[1]
+            tsg = generation._two_symbols[1]
+
+            ts_coverage = {str(bin(i)[2:].zfill(k)): [] for i in range(2**k)}
+            for row in tsa + tsg:
+                expanded_ts_schema = (
+                    _expand_ts_logic(row[0], row[1]) if row[1] else [row[0]]
+                )  # if there are no permutable indexes, then the schema is already expanded
+                for ts_schema in expanded_ts_schema:
+                    for schema in _expand_schema("".join(ts_schema)):
+                        if row not in ts_coverage[schema]:
+                            ts_coverage[schema].append(row)
+            return ts_coverage
+
+        if type == "wildcard":
+            return _get_wildcard_coverage(annihilation, generation)
+        elif type == "ts":
+            return _get_ts_coverage(annihilation, generation, self.k)
+
     def input_redundancy_anni_gen(self, operator=mean, norm=False):
         """
         The redundancy of the annihilation and generation rules of the node.
@@ -1534,9 +1680,9 @@ class BooleanNode(object):
             (float) : The effective connectivity of the annihilation and generation rules of the node.
 
         See Also:
-            :func:`get_anni_gen_coverage`, :func:`anni_gen_redundancy`, :func:`input_redundancy`, :func:`effective_connectivity`.
+            :func:`get_anni_gen_coverage`, :func:`input_redundancy_anni_gen`, :func:`input_redundancy`, :func:`effective_connectivity`.
         """
-        anni_gen_k_r = self.anni_gen_redundancy(operator=operator, norm=False)
+        anni_gen_k_r = self.input_redundancy_anni_gen(operator=operator, norm=False)
         anni_gen_k_e = self.k - anni_gen_k_r
 
         if norm:
