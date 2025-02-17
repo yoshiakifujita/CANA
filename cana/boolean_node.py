@@ -1655,17 +1655,24 @@ class BooleanNode(object):
         anni_gen_coverage = {}
         anni_gen_coverage = self.get_anni_gen_coverage()
         redundancy = [
-            operator((rule.count("#") for rule in anni_gen_coverage[binstate]))
+            mean([pi.count("#") for pi in anni_gen_coverage[binstate]])
+            if len(anni_gen_coverage[binstate]) > 0
+            else 0
             for binstate in anni_gen_coverage
         ]
 
-        k_r = sum(redundancy) / len(anni_gen_coverage)
-
+        annigen_kr = sum(redundancy) / len(
+            [
+                binstate
+                for binstate in anni_gen_coverage
+                if len(anni_gen_coverage[binstate]) > 0
+            ]
+        )
         if norm:
             # Normalizes
-            k_r = k_r / self.k
+            annigen_kr = annigen_kr / self.k
 
-        return k_r
+        return annigen_kr
 
     def effective_connectivity_anni_gen(self, operator=mean, norm=False):
         """
