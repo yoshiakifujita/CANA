@@ -1655,12 +1655,14 @@ class BooleanNode(object):
         anni_gen_coverage = {}
         anni_gen_coverage = self.get_anni_gen_coverage()
         redundancy = [
-            mean([pi.count("#") for pi in anni_gen_coverage[binstate]])
+            operator([pi.count("#") for pi in anni_gen_coverage[binstate]])
             if len(anni_gen_coverage[binstate]) > 0
             else 0
             for binstate in anni_gen_coverage
         ]
-
+        if len(redundancy) == 0:
+            return 0 # if there are no rules that cover the LUT entries, then the redundancy is 0.
+        
         annigen_kr = sum(redundancy) / len(
             [
                 binstate
