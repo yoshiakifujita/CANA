@@ -1660,9 +1660,17 @@ class BooleanNode(object):
             else 0
             for binstate in anni_gen_coverage
         ]
-        if len(redundancy) == 0:
+
+        valid_binstate_count = len(
+            [
+                binstate
+                for binstate in anni_gen_coverage
+                if len(anni_gen_coverage[binstate]) > 0
+            ]
+        )
+        if valid_binstate_count == 0: # checking for division by zero error
             return 0 # if there are no rules that cover the LUT entries, then the redundancy is 0.
-        
+
         annigen_kr = sum(redundancy) / len(
             [
                 binstate
