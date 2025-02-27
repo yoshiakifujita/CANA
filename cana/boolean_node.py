@@ -1460,7 +1460,7 @@ class BooleanNode(object):
                 return tsa, tsg
             return tsa + tsg
     
-    def input_symmetry_mean_anni_gen(self):
+    def input_symmetry_mean_anni_gen(self, norm = False):
         """
         Input symmetry for the annihilation and generation rules of the node.
         The mean of the number of input values that are # for all annihilation and generation rules.
@@ -1489,6 +1489,13 @@ class BooleanNode(object):
                             len(i) for i in ts[1]
                         )
             summand += inner / len(self._ts_coverage[rule])
+        
+        if len(anni_gen_coverage) == 0:
+            return 0
+        
+        if norm:
+            return (summand / len(anni_gen_coverage)) / self.k
+        
         return (
             summand / len(anni_gen_coverage)
         )  # returning the mean of the number of input values that are not # for all anni_gen rules
