@@ -1,6 +1,6 @@
 import math
 
-import helpers.helper as helper
+from tests.helpers import helper
 
 from cana.boolean_node import BooleanNode
 

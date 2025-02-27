@@ -5,9 +5,10 @@
 # Checks were made with the online tool: http://www.mathematik.uni-marburg.de/~thormae/lectures/ti1/code/qmc/
 #
 # from cana.canalization.boolean_canalization import *
+import pytest
 from cana.canalization.cboolean_canalization import find_implicants_qm
 from cana.cutils import outputs_to_binstates_of_given_type
-from helpers.helper import reorderTwoSymbolOutput, randNode, enumerateImplicants, expandPi
+from tests.helpers.helper import reorderTwoSymbolOutput, randNode, enumerateImplicants, expandPi
 from cana.canalization.boolean_canalization import find_two_symbols_v2
 
 def test_AND():

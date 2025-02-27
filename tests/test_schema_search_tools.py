@@ -4,7 +4,6 @@ from cana.boolean_node import BooleanNode
 from automata.schema_search_tools import annihilation_generation_rules, maintenance_rules, fill_missing_outputs_as_maintenance
 from automata.automata_rules import automata_output_list, annihilation_generation
 
-
 def test_annihilation_generation_maintenance_rules():
     """
     Splitting a rule into their annihilation_generation and maintenance. Then combining them again to check if we get the original rule.
@@ -12,8 +11,11 @@ def test_annihilation_generation_maintenance_rules():
     anni_gen = {}
     maintenance = {}
     for item in automata_output_list:
-        anni_gen[item] = annihilation_generation_rules(automata_output_list[item])
-        assert sorted(anni_gen[item]) == sorted(annihilation_generation[item]), "Annihilation, generation rules are not correct."
+        n = BooleanNode.from_output_list(automata_output_list[item])
+        anni_gen[item] = n.get_annihilation_generation_rules()
+        assert sorted(anni_gen[item]) == sorted(annihilation_generation[item]), (
+            f"{item}: Annihilation, generation rules are not correct."
+        )
 
         maintenance[item] = maintenance_rules(automata_output_list[item])
 
