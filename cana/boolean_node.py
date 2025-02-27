@@ -1473,11 +1473,13 @@ class BooleanNode(object):
 
         self._check_compute_canalization_variables(ts_coverage=True) # computing the ts_coverage if not already computed
         
-        anni_gen = self.get_annihilation_generation_rules() # getting the annihilation generation rules for the node
-        anni_gen_coverage = [] # dict to store the rules covered in anni_gen
-        for key, value in fill_out_lut(anni_gen): # expanding anni_gen rules to get the rules covered in LUT
-            if value != '?':
-                anni_gen_coverage.append(key)
+        # anni_gen = self.get_annihilation_generation_rules() # getting the annihilation generation rules for the node
+        # anni_gen_coverage = [] # dict to store the rules covered in anni_gen
+        # for key, value in fill_out_lut(anni_gen): # expanding anni_gen rules to get the rules covered in LUT
+        #     if value != '?':
+        #         anni_gen_coverage.append(key) # NOTE: RELEAGTED THIS AFTER CREATING get_anni_gen_coverage FUNCTION
+        temp_coverage = self.get_anni_gen_coverage(type="wildcard") # getting the wildcard coverage of the node
+        anni_gen_coverage = [k for k, v in temp_coverage.items() if v] # getting the rules covered in anni_gen
 
         summand = 0 # summand for the mean of the number of input values that are # if the rule is covered in two-symbol
         for rule in anni_gen_coverage: # only iterating over the rules that are covered in anni_gen
