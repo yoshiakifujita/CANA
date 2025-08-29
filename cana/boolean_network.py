@@ -1432,7 +1432,9 @@ class BooleanNetwork:
             dg = self.structural_graph(*args, **kwargs)
         elif graph == "effective":
             dg = self.effective_graph(
-                mode="input", bound="mean", threshold=None, *args, **kwargs
+                #mode="input", bound="mean", threshold=None, *args, **kwargs
+		# y_fujita modify Aug 26, 2025 Error address
+		bound="mean", threshold=None, *args, **kwargs
             )
         else:
             raise AttributeError(
@@ -1462,11 +1464,14 @@ class BooleanNetwork:
     # Minimum Dominating Set
     #
     def minimum_dominating_set_driver_nodes(
-        self, graph="structural", max_search=5, keep_self_loops=True, *args, **kwargs
+        # y_fujita modify Aug 26, 2025 add min_search to avoid time consuming issue
+        #self, graph="structural", max_search=5, keep_self_loops=True, *args, **kwargs
+        self, graph="structural", min_search=1, max_search=5, keep_self_loops=True, *args, **kwargs
     ):
         """The minimun set of necessary driver nodes to control the network based on Minimum Dominating Set (MDS) theory.
 
         Args:
+            min_search (int) : Minimum search of additional variables. Defaults from 1.
             max_search (int) : Maximum search of additional variables. Defaults to 5.
             keep_self_loops (bool) : If self-loops are used in the computation.
 
@@ -1479,7 +1484,9 @@ class BooleanNetwork:
             dg = self.structural_graph(*args, **kwargs)
         elif graph == "effective":
             dg = self.effective_graph(
-                mode="input", bound="mean", threshold=None, *args, **kwargs
+		# y_fujita modify Aug 26, 2025 Error address
+                #mode="input", bound="mean", threshold=None, *args, **kwargs
+		bound="mean", threshold=None, *args, **kwargs
             )
         else:
             raise AttributeError(
@@ -1487,8 +1494,9 @@ class BooleanNetwork:
                 % graph
             )
         #
-
-        mdssets = mds.mds(dg, max_search=max_search, keep_self_loops=keep_self_loops)
+        # y_fujita modify Aug 26, 2025 add min_search to avoid time consuming issue 
+        # mdssets = mds.mds(dg, max_search=max_search, keep_self_loops=keep_self_loops)
+        mdssets = mds.mds(dg, min_search=min_search, max_search=max_search, keep_self_loops=keep_self_loops)
         return mdssets  # [ [self.nodes[i].name for i in mdsset] for mdsset in mdssets]
 
     # Structural Controllability
@@ -1510,7 +1518,9 @@ class BooleanNetwork:
             dg = self.structural_graph(*args, **kwargs)
         elif graph == "effective":
             dg = self.effective_graph(
-                mode="input", bound="mean", threshold=None, *args, **kwargs
+		# y_fujita modify Aug 26, 2025 Error address
+                #mode="input", bound="mean", threshold=None, *args, **kwargs
+		bound="mean", threshold=None, *args, **kwargs
             )
         else:
             raise AttributeError(

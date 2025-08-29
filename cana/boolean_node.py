@@ -231,6 +231,8 @@ class BooleanNode(object):
 
         if norm:
             # Normalizes
+            # y_fujita modification 07/31/2025 zero address division 
+            if self.k == 0.0: self.k = self.k + 0.0001
             k_r = k_r / self.k
 
         return k_r
