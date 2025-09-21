@@ -26,6 +26,8 @@ import pickle
 import random
 import re
 import warnings
+from joblib import Parallel, delayed
+import itertools
 
 import networkx as nx
 import numpy as np
@@ -1020,12 +1022,13 @@ class BooleanNetwork:
                     pickle.dump(self._stg_r, handle)
         return self._stg_r
 
-    def attractor_driver_nodes(self, min_dvs=1, max_dvs=4, verbose=False):
+    def attractor_driver_nodes(self, min_dvs=1, max_dvs=4, candidate_nodes=None, fvs_nodes=None, n_jobs=-1, verbose=False):
         """Get the minimum necessary driver nodes by iterating the combination of all possible driver nodes of length :math:`min <= x <= max`.
 
         Args:
             min_dvs (int) : Mininum number of driver nodes to search.
             max_dvs (int) : Maximum number of driver nodes to search.
+            candidate_nodes (list or None): Optional list of node IDs to consider as potential driver nodes. If None, all non-constant nodes are used.
 
         Returns:
             (list) : The list of driver nodes found in the search.
@@ -1039,25 +1042,46 @@ class BooleanNetwork:
         See also:
             :func:`controlled_state_transition_graph`, :func:`controlled_attractor_graph`.
         """
-        nodeids = list(range(self.Nnodes))
+        #nodeids = list(range(self.Nnodes))
+
+        # Start from candidate nodes if provided, else all nodes
+        if candidate_nodes is not None:
+            nodeids = list(candidate_nodes)
+        else:
+            nodeids = list(range(self.Nnodes))
+            
         if self.keep_constants:
             for cv in self.get_constants().keys():
                 nodeids.remove(cv)
 
+        # Convert FVS nodes to set once
+        fvs_nodes_set = set(fvs_nodes) if fvs_nodes is not None else None
+
         attractor_controllers_found = []
         nr_dvs = min_dvs
+        
         while (len(attractor_controllers_found) == 0) and (nr_dvs <= max_dvs):
             if verbose:
                 print("Trying with {:d} Driver Nodes".format(nr_dvs))
-            for dvs in itertools.combinations(nodeids, nr_dvs):
-                dvs = list(dvs)
-                # cstg = self.controlled_state_transition_graph(dvs)
-                cag = self.controlled_attractor_graph(dvs)
-                att_reachable_from = self.mean_reachable_attractors(cag)
-
+        
+            # Build all subsets of this size
+            subsets = list(itertools.combinations(nodeids, nr_dvs))
+        
+            # Optional: sort so that subsets with FVS nodes are evaluated first
+            if fvs_nodes_set is not None:
+                subsets.sort(key=lambda dvs: 0 if not set(dvs).isdisjoint(fvs_nodes_set) else 1)
+        
+            # Parallel evaluation of subsets
+            results = Parallel(n_jobs=n_jobs, prefer="processes")(
+                delayed(self._check_driver_set)(dvs) for dvs in subsets
+            )
+        
+            # Collect solutions
+            for dvs_result in results:
+                dvs, att_reachable_from = dvs_result
                 if att_reachable_from == 1.0:
-                    attractor_controllers_found.append(dvs)
-            # Add another driver node
+                    attractor_controllers_found.append(list(dvs))
+
             nr_dvs += 1
 
         if len(attractor_controllers_found) == 0:
@@ -1068,6 +1092,12 @@ class BooleanNetwork:
             )
 
         return attractor_controllers_found
+
+    def _check_driver_set(self, dvs):
+        dvs = list(dvs)
+        cag = self.controlled_attractor_graph(dvs)
+        att_reachable_from = self.mean_reachable_attractors(cag)
+        return dvs, att_reachable_from
 
     def controlled_state_transition_graph(self, driver_nodes=[]):
         """Returns the Controlled State-Transition-Graph (CSTG).
@@ -1402,6 +1432,7 @@ class BooleanNetwork:
     def feedback_vertex_set_driver_nodes(
         self,
         graph="structural",
+        threshold = None,
         method="grasp",
         max_iter=1,
         max_search=11,
@@ -1415,6 +1446,7 @@ class BooleanNetwork:
             graph (string) : Which graph to perform computation
             method (string) : FVS method. ``bruteforce`` or ``grasp`` (default).
             max_iter (int) : The maximum number of iterations used by the grasp method.
+            min_search (int) : The minimum number of searched used by the bruteforce method.
             max_search (int) : The maximum number of searched used by the bruteforce method.
             keep_self_loops (bool) : Keep or remove self loop in the graph to be searched.
 
@@ -1433,9 +1465,12 @@ class BooleanNetwork:
         elif graph == "effective":
             dg = self.effective_graph(
                 #mode="input", bound="mean", threshold=None, *args, **kwargs
-		# y_fujita modify Aug 26, 2025 Error address
-		bound="mean", threshold=None, *args, **kwargs
+        # y_fujita modify Sep 4 2025 add threshold argument interface
+		bound="mean", threshold=threshold, *args, **kwargs
             )
+            # y_fujita modify Sep 4 2025 address effective_graph threshold issue
+            if (threshold is not None):
+                dg = self._prune_edges_by_threshold(dg, threshold)
         else:
             raise AttributeError(
                 "The graph type '%s' is not accepted. Try 'structural' or 'effective'."
@@ -1458,15 +1493,81 @@ class BooleanNetwork:
 
         fvssets = [fvc.union(set(self.input_nodes)) for fvc in fvssets]
 
+        # y_fujita modify Sep 3 2025 add number of nodes and edges of target network for effective case
+        #return fvssets  # [ [self.nodes[i].name for i in fvsset] for fvsset in fvssets]
+        return dg.number_of_nodes(), dg.number_of_edges(), fvssets  # [ [self.nodes[i].name for i in fvsset] for fvsset in fvssets]
+
+# y_fujita modification 09/15/2025 fvs with effective graph weight consideration START    
+    def feedback_vertex_set_driver_nodes_weight(
+        self,
+        #graph="structural",
+        #threshold = None,
+        #method="grasp",
+        max_iter=1,
+        max_search=11,
+        keep_self_loops=True,
+        *args,
+        **kwargs,
+    ):
+        """The minimum set of necessary driver nodes to control the network based on Feedback Vertex Set (FVS) theory by consideringw eights.
+
+        Args:
+            graph (string) : Which graph to perform computation
+            method (string) : FVS method. ``bruteforce`` or ``grasp`` (default).
+            max_iter (int) : The maximum number of iterations used by the grasp method.
+            max_search (int) : The maximum number of searched used by the bruteforce method.
+            keep_self_loops (bool) : Keep or remove self loop in the graph to be searched.
+
+        Returns:
+            (list) : A list-of-lists with FVS solution nodes.
+
+        Note:
+            When computing FVS on the structural graph, you might want to use ``remove_constants=True``
+            to make sure the resulting set is minimal – since constants are not controlabled by definition.
+            Also, when computing on the effective graph, you can define the desired ``threshold`` level.
+        """
+        self._check_compute_variables(sg=True)
+
+        dg = self.effective_graph(bound="mean", threshold=None, *args, **kwargs)
+
+        fvssets = fvs.fvs_weight(dg, max_search=max_search, keep_self_loops=keep_self_loops)
+
+        # y_fujita modify Sep 3 2025 add number of nodes and edges of target network for effective case
+        #return fvssets  # [ [self.nodes[i].name for i in fvsset] for fvsset in fvssets]
         return fvssets  # [ [self.nodes[i].name for i in fvsset] for fvsset in fvssets]
 
+# y_fujita modification 09/15/2025 fvs with effective graph weight consideration START
+        
     #
     # Minimum Dominating Set
     #
+    # y_fujita modify Sep 4 2025 address effective_graph threshold issue
+    def _prune_edges_by_threshold(self, G, threshold=0.2):
+        """
+        Remove edges with weight < threshold from a NetworkX DiGraph.
+    
+        Args:
+            G : nx.DiGraph
+                Graph returned by CANA (effective_graph, wiring_diagram, etc.)
+            threshold : float
+                Minimum edge weight to keep
+    
+        Returns:
+            pruned : nx.DiGraph
+                Copy of G with pruned edges
+        """
+        pruned = G.copy()
+        for u, v, d in list(G.edges(data=True)):
+            if d.get("weight", 0) < threshold:
+                pruned.remove_edge(u,v)
+    
+        return pruned
+    
     def minimum_dominating_set_driver_nodes(
-        # y_fujita modify Aug 26, 2025 add min_search to avoid time consuming issue
+        # y_fujita modify Aug 26, 2025 add min_search to avoid time consuming issue (add min search argument)
+        # y_fujita modify Sep 3 2025 add threshold argument interface
         #self, graph="structural", max_search=5, keep_self_loops=True, *args, **kwargs
-        self, graph="structural", min_search=1, max_search=5, keep_self_loops=True, *args, **kwargs
+        self, graph="structural", threshold=None, min_search=1, max_search=5, keep_self_loops=True, *args, **kwargs
     ):
         """The minimun set of necessary driver nodes to control the network based on Minimum Dominating Set (MDS) theory.
 
@@ -1484,10 +1585,13 @@ class BooleanNetwork:
             dg = self.structural_graph(*args, **kwargs)
         elif graph == "effective":
             dg = self.effective_graph(
-		# y_fujita modify Aug 26, 2025 Error address
+        # y_fujita modify Sep 3 2025 add threshold argument interface
                 #mode="input", bound="mean", threshold=None, *args, **kwargs
-		bound="mean", threshold=None, *args, **kwargs
+		bound="mean", threshold=threshold, *args, **kwargs
             )
+            # y_fujita modify Sep 4 2025 address effective_graph threshold issue
+            if (threshold is not None):
+                dg = self._prune_edges_by_threshold(dg, threshold)
         else:
             raise AttributeError(
                 "The graph type '%s' is not accepted. Try 'structural' or 'effective'."
@@ -1497,12 +1601,19 @@ class BooleanNetwork:
         # y_fujita modify Aug 26, 2025 add min_search to avoid time consuming issue 
         # mdssets = mds.mds(dg, max_search=max_search, keep_self_loops=keep_self_loops)
         mdssets = mds.mds(dg, min_search=min_search, max_search=max_search, keep_self_loops=keep_self_loops)
-        return mdssets  # [ [self.nodes[i].name for i in mdsset] for mdsset in mdssets]
+        
 
+        # y_fujita modify Sep 3 2025 add number of nodes and edges of target network for effective case
+        #return mdssets  # [ [self.nodes[i].name for i in mdsset] for mdsset in mdssets]
+        return dg.number_of_nodes(), dg.number_of_edges(), mdssets  # [ [self.nodes[i].name for i in mdsset] for mdsset in mdssets]
+
+
+    
     # Structural Controllability
     #
+    # y_fujita modify Sep 3 2025 add threshold argument interface
     def structural_controllability_driver_nodes(
-        self, graph="structural", keep_self_loops=True, *args, **kwargs
+        self, graph="structural", threshold=None, keep_self_loops=True, *args, **kwargs
     ):
         """The minimum set of necessary driver nodes to control the network based on Structural Controlability (SC) theory.
 
@@ -1518,22 +1629,28 @@ class BooleanNetwork:
             dg = self.structural_graph(*args, **kwargs)
         elif graph == "effective":
             dg = self.effective_graph(
-		# y_fujita modify Aug 26, 2025 Error address
+        # y_fujita modify Sep 3 2025 add threshold argument interface
                 #mode="input", bound="mean", threshold=None, *args, **kwargs
-		bound="mean", threshold=None, *args, **kwargs
+		bound="mean", threshold=threshold, *args, **kwargs
             )
+            # y_fujita modify Sep 3 2025 address effective_graph threshold issue
+            if (threshold is not None):
+                dg = self._prune_edges_by_threshold(dg, threshold)
         else:
             raise AttributeError(
                 "The graph type '%s' is not accepted. Try 'structural' or 'effective'."
                 % graph
             )
         #
+        
         scsets = [
             set(scset).union(set(self.input_nodes))
             for scset in sc.sc(dg, keep_self_loops=keep_self_loops)
         ]
-        return scsets  # [ [self.nodes[i].name for i in scset] for scset in scsets]
-
+        # y_fujita modify Sep 3 2025 add number of nodes and edges of target network for effective case
+        #return scsets  # [ [self.nodes[i].name for i in scset] for scset in scsets]
+        return dg.number_of_nodes(), dg.number_of_edges(), scsets  # [ [self.nodes[i].name for i in scset] for scset in scsets]
+        
     #
     # Dynamical Impact
     #
@@ -1967,3 +2084,5 @@ class BooleanNetwork:
             )
 
         return dy / float(self.Nnodes)
+
+
